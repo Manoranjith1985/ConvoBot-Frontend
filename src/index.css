@@ -1,0 +1,388 @@
+/* * ====================================
+ * 1. Global Theme and Font Setup
+ * ====================================
+ */
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@100..900&display=swap');
+
+:root {
+    /* Theme Colors */
+    --color-primary-teal: #0694a1;
+    --color-primary-teal-hover: #047683;
+    --color-success-green: #059669;
+    --color-success-pill-bg: #d1fae5;
+    --color-warning-red: #dc2626;
+    --color-warning-pill-bg: #fee2e2;
+    --color-text-dark: #1f2937;
+    --color-text-gray: #6b7280;
+    --color-background-light: #f9fafb;
+    --color-card-background: #ffffff;
+    --color-border-light: #e5e7eb;
+    
+    /* Font setup */
+    font-family: 'Inter', sans-serif;
+    color: var(--color-text-dark);
+    background-color: var(--color-background-light);
+}
+
+*, *::before, *::after {
+    box-sizing: border-box;
+}
+
+body {
+    margin: 0;
+    min-height: 100vh;
+}
+
+/* Page Container Styling */
+.page-container {
+    max-width: 1280px; /* Equivalent to max-w-7xl */
+    margin-left: auto;
+    margin-right: auto;
+    padding: 32px 16px; /* Equivalent to p-4 md:p-8 */
+    overflow-x: hidden;
+}
+
+/* Responsive Padding for larger screens */
+@media (min-width: 768px) {
+    .page-container {
+        padding: 32px;
+    }
+}
+
+/* * ====================================
+ * 2. Component Styles (Cards, Metrics, Pills)
+ * ====================================
+ */
+
+/* Card Styling */
+.dashboard-card {
+    background-color: var(--color-card-background);
+    border: 1px solid var(--color-border-light);
+    border-radius: 12px; /* Equivalent to rounded-xl */
+    padding: 24px; /* Equivalent to p-6 */
+    box-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.1), 0 1px 2px 0 rgba(0, 0, 0, 0.06);
+    transition: transform 0.2s, box-shadow 0.2s, border 0.2s;
+    box-sizing: border-box; 
+    /* Safety measure for cards inside grids */
+    min-width: 0;
+}
+.dashboard-card:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -2px rgba(0, 0, 0, 0.06);
+}
+
+/* Accent Colors */
+.metric-value {
+    color: var(--color-primary-teal); /* Teal Primary Accent */
+    font-weight: 800;
+    font-size: 2.25rem; /* Equivalent to text-4xl */
+    margin-top: 4px;
+}
+.text-red {
+    color: var(--color-warning-red);
+}
+.text-green {
+    color: var(--color-success-green);
+}
+
+/* Pill Styles */
+.pill-base {
+    padding: 2px 8px; /* Equivalent to px-2 py-0.5 */
+    border-radius: 9999px; /* Equivalent to rounded-full */
+    font-size: 0.75rem; /* Equivalent to text-xs */
+    font-weight: 600;
+}
+.pill-success {
+    background-color: var(--color-success-pill-bg);
+    color: var(--color-success-green);
+}
+.pill-warning {
+    background-color: var(--color-warning-pill-bg);
+    color: var(--color-warning-red);
+}
+
+/* * ====================================
+ * 3. Button Styles (Primary Action)
+ * ====================================
+ */
+.primary-btn-group {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 12px;
+}
+
+.primary-btn {
+    background-color: var(--color-primary-teal);
+    color: white;
+    padding: 0.5rem 1rem;
+    border-radius: 0.5rem;
+    border: none;
+    cursor: pointer;
+    box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -2px rgba(0, 0, 0, 0.06);
+    transition: background-color 0.2s;
+    display: flex;
+    align-items: center;
+}
+.primary-btn:hover {
+    background-color: var(--color-primary-teal-hover);
+}
+
+/* Overrides for specific buttons */
+.btn-yellow {
+    background-color: #f59e0b; /* Yellow-600 */
+}
+.btn-yellow:hover {
+    background-color: #d97706; /* Yellow-700 */
+}
+.btn-red {
+    background-color: #dc2626; /* Red-600 */
+}
+.btn-red:hover {
+    background-color: #b91c1c; /* Red-700 */
+}
+
+/* * ====================================
+ * 4. Layout & Grid Systems
+ * ====================================
+ */
+
+/* Key Metrics Grid */
+.metrics-grid {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 24px; /* Gap between cards */
+    margin-bottom: 32px;
+}
+
+@media (max-width: 1023px) {
+    .metrics-grid {
+        grid-template-columns: repeat(2, 1fr);
+        gap: 16px;
+    }
+}
+
+@media (max-width: 639px) { /* Changed from 640px to 639px for clarity/standard */
+    .metrics-grid {
+        grid-template-columns: 1fr;
+    }
+}
+/* Responsive Grid Adjustments */
+/* @media (min-width: 640px) { 
+    .metrics-grid {
+        grid-template-columns: 1fr;
+    }
+} */
+/* @media (min-width: 1024px) { 
+    .metrics-grid {
+        grid-template-columns: repeat(4, 1fr);
+    }
+    .charts-grid {
+        grid-template-columns: repeat(2, 1fr);
+    }
+} */
+
+/* Charts Grid */
+.charts-grid {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 24px;
+    margin-bottom: 32px;
+    width:100%
+}
+.charts-grid > * {
+    width: 100%;
+    min-width:0;
+}
+
+@media (max-width: 768px) {
+    .charts-grid {
+        grid-template-columns: 1fr;
+        gap: 16px;
+    }
+}
+
+/* Table Styling */
+.data-table {
+    min-width: 100%;
+    border-collapse: collapse;
+}
+
+.data-table thead tr {
+    text-align: left;
+    font-size: 0.75rem;
+    font-weight: 500;
+    text-transform: uppercase;
+    color: #6b7280;
+    background-color: #f9fafb; /* Equivalent to bg-gray-50 */
+    border-bottom: 1px solid var(--color-border-light);
+}
+
+.data-table th, .data-table td {
+    padding: 12px 24px; /* Equivalent to px-6 py-3/4 */
+    white-space: nowrap;
+}
+
+.data-table tbody tr {
+    border-bottom: 1px solid var(--color-border-light);
+}
+
+.data-table tbody tr:hover {
+    background-color: #f9fafb; /* Equivalent to hover:bg-gray-50 */
+}
+
+.data-table a {
+    color: #4f46e5; /* Indigo-600 */
+    text-decoration: none;
+    font-weight: 500;
+}
+.data-table a:hover {
+    color: #3730a3; /* Indigo-900 */
+}
+
+/* General Headings */
+h1 {
+    font-size: 2.25rem; /* Equivalent to text-4xl */
+    font-weight: 700;
+    margin-bottom: 8px;
+    color: var(--color-text-dark);
+}
+
+h2 {
+    font-size: 1.5rem; /* Equivalent to text-2xl */
+    font-weight: 600;
+    margin-bottom: 16px;
+    color: var(--color-text-dark);
+    margin-top: 32px;
+}
+
+h3 {
+    font-size: 1.25rem; /* Equivalent to text-xl */
+    font-weight: 600;
+    margin-bottom: 16px;
+    color: var(--color-text-dark);
+}
+
+/* Header flex layout */
+.header-content {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    flex-wrap: wrap;
+    gap: 16px;
+    margin-bottom: 32px;
+}
+
+
+/* Add this new section to your index.css */
+
+/* * ====================================
+ * 5. Application Layout & Sidebar
+ * ====================================
+ */
+
+/* Main Application Structure using CSS Grid */
+.app-layout {
+    display: grid;
+    /* Desktop: 240px wide sidebar on the left, main content fills the rest (1fr) */
+    grid-template-columns: 240px 1fr; 
+    min-height: 100vh;
+    width: 100%;
+}
+
+/* Sidebar Styling */
+.sidebar {
+    background-color: var(--color-card-background); /* White background */
+    border-right: 1px solid var(--color-border-light);
+    padding: 24px 0;
+    position: sticky; /* Keeps sidebar fixed when scrolling content */
+    top: 0;
+    height: 100vh;
+}
+
+.sidebar-logo {
+    font-size: 1.5rem;
+    font-weight: 700;
+    color: var(--color-primary-teal);
+    padding: 0 24px 24px 24px;
+    margin-bottom: 8px;
+    border-bottom: 1px solid var(--color-border-light);
+}
+
+/* Navigation List and Items */
+.nav-list {
+    list-style: none; 
+    padding: 0; 
+    margin: 0;
+}
+
+.nav-item a {
+    display: flex;
+    align-items: center;
+    padding: 12px 24px;
+    color: var(--color-text-dark);
+    text-decoration: none;
+    transition: background-color 0.15s, color 0.15s;
+    font-size: 1rem;
+    font-weight: 500;
+}
+
+.nav-item a:hover {
+    background-color: #f3f4f6; /* Light gray hover */
+}
+
+/* Active Nav Item (Dashboard) */
+.nav-item.active a {
+    background-color: var(--color-primary-teal);
+    color: white;
+    font-weight: 600;
+}
+
+.nav-item.active a:hover {
+    background-color: var(--color-primary-teal-hover);
+}
+
+.nav-item svg {
+    width: 20px;
+    height: 20px;
+    margin-right: 12px;
+}
+
+/* Main Content Area */
+.main-content {
+    overflow-y: auto; /* Allows main content to scroll independently */
+    overflow-x: hidden;
+    background-color: var(--color-background-light); 
+}
+
+/* Responsive adjustment: Stack columns for tablets/phones */
+@media (max-width: 1023px) {
+    .app-layout {
+        grid-template-columns: 1fr; /* Single column layout */
+    }
+    .sidebar {
+        height: auto;
+        position: relative; /* Not sticky on mobile */
+        border-right: none;
+        border-bottom: 1px solid var(--color-border-light);
+    }
+    .nav-list {
+        display: flex;
+        flex-wrap: wrap;
+        padding-bottom: 0 16px 16px;
+        justify-content: space-around;
+    }
+    .nav-item {
+        flex-basis: 45%; /* e.g., two items per row */
+        text-align: center;
+    }
+    .nav-item a {
+        padding: 8px;
+        justify-content: center;
+        /* flex-direction: column;
+        margin-right: 4px; */
+    }
+    .nav-item svg {
+        margin-right: 8px;
+        /* margin-bottom: 4px; */
+    }
+}

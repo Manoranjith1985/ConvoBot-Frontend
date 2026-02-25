@@ -1,0 +1,76 @@
+.encounter-container {
+  max-width: 1100px;
+  margin: 30px auto;
+  padding: 25px;
+  background: #ffffff;
+  border-radius: 10px;
+  font-family: Arial, sans-serif;
+  box-shadow: 0 0 12px rgba(0, 0, 0, 0.1);
+}
+
+.encounter-container h2 {
+  margin-bottom: 20px;
+  color: #2c3e50;
+}
+
+.section {
+  margin-bottom: 30px;
+}
+
+.section label {
+  font-weight: bold;
+  display: block;
+  margin-bottom: 8px;
+}
+
+textarea {
+  width: 100%;
+  min-height: 90px;
+  padding: 10px;
+  border-radius: 6px;
+  border: 1px solid #ccc;
+  resize: vertical;
+  font-size: 14px;
+}
+
+.primary-btn {
+  margin-top: 10px;
+  padding: 10px 16px;
+  background-color: #0077cc;
+  color: white;
+  border: none;
+  border-radius: 6px;
+  cursor: pointer;
+}
+
+.primary-btn:hover {
+  background-color: #005fa3;
+}
+
+.soap-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 20px;
+}
+
+.soap-grid label {
+  margin-bottom: 6px;
+}
+
+.action-bar {
+  display: flex;
+  justify-content: flex-end;
+  gap: 15px;
+}
+
+.secondary-btn {
+  padding: 10px 16px;
+  background-color: #f0f0f0;
+  border: 1px solid #ccc;
+  border-radius: 6px;
+  cursor: pointer;
+}
+
+.secondary-btn:hover {
+  background-color: #e0e0e0;
+}

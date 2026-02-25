@@ -1,0 +1,205 @@
+/* OPDashboard.css */
+
+.page-container {
+    padding: 24px;
+    max-width: 1400px;
+    margin: 0 auto;
+  }
+  
+  .header-content {
+    background: white;
+    padding: 24px;
+    border-radius: 12px;
+    border-left: 6px solid #0d9488;
+    margin-bottom: 32px;
+    box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05);
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+  }
+  
+  .schedule-stats {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+    gap: 24px;
+    margin-bottom: 32px;
+  }
+  
+  .stat-item {
+    background: white;
+    border: 1px solid #e2e8f0;
+    border-radius: 12px;
+    padding: 24px;
+    min-height: 110px;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+  }
+  
+  .border-teal    { border-left: 6px solid #0d9488; }
+  .border-green   { border-left: 6px solid #10b981; }
+  .border-yellow  { border-left: 6px solid #f59e0b; }
+  .border-blue    { border-left: 6px solid #6366f1; }
+  
+  .stat-label {
+    font-size: 0.85rem;
+    font-weight: 700;
+    color: #64748b;
+    text-transform: uppercase;
+    margin-bottom: 8px;
+  }
+  
+  .stat-value {
+    font-size: 2.2rem;
+    font-weight: 800;
+    line-height: 1;
+  }
+  
+  .table-header-row {
+    background: white;
+    padding: 16px 24px;
+    border-radius: 12px 12px 0 0;
+    border-left: 6px solid #0d9488;
+    box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05);
+    display: flex;
+    align-items: center;
+  }
+  
+  .filters {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+    gap: 16px;
+    padding: 20px 24px;
+    background: white;
+    border-left: 1px solid #e2e8f0;
+    border-right: 1px solid #e2e8f0;
+  }
+  
+  .data-table {
+    width: 100%;
+    border-collapse: collapse;
+    background: white;
+  }
+  
+  .data-table th,
+  .data-table td {
+    padding: 12px 16px;
+    text-align: left;
+    border-bottom: 1px solid #e2e8f0;
+  }
+  
+  .data-table th {
+    background: #f8fafc;
+    font-weight: 600;
+    color: #475569;
+  }
+  
+  .patient-list,
+  .patient-dropdown {
+    position: absolute;
+    top: 100%;
+    left: 0;
+    width: 100%;
+    max-height: 240px;
+    overflow-y: auto;
+    background: white;
+    border: 1px solid #cbd5e1;
+    border-radius: 6px;
+    list-style: none;
+    padding: 0;
+    margin: 4px 0 0;
+    z-index: 100;
+    box-shadow: 0 10px 15px -3px rgba(0,0,0,0.1);
+  }
+  
+  .patient-list li,
+  .patient-dropdown li {
+    padding: 12px 16px;
+    cursor: pointer;
+  }
+  
+  .patient-list li:hover,
+  .patient-dropdown li:hover {
+    background: #f1f5f9;
+  }
+  
+  .modal-overlay {
+    position: fixed;
+    inset: 0;
+    background: rgba(15, 23, 42, 0.6);
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    z-index: 2000;
+    backdrop-filter: blur(4px);
+  }
+  
+  .modal-content {
+    background: white;
+    width: 100%;
+    max-width: 520px;
+    border-radius: 12px;
+    box-shadow: 0 20px 25px -5px rgba(0,0,0,0.1);
+    overflow: hidden;
+  }
+  
+  .modal-header {
+    padding: 20px 24px;
+    border-bottom: 1px solid #e2e8f0;
+    background: #f8fafc;
+  }
+  
+  .modal-body {
+    padding: 24px;
+  }
+  
+  .form-group {
+    margin-bottom: 20px;
+  }
+  
+  .form-group label {
+    display: block;
+    font-size: 0.875rem;
+    font-weight: 600;
+    color: #475569;
+    margin-bottom: 6px;
+  }
+  
+  .form-group input,
+  .form-group select {
+    width: 100%;
+    padding: 10px 12px;
+    border: 1px solid #cbd5e1;
+    border-radius: 6px;
+    font-size: 1rem;
+  }
+  
+  .primary-btn {
+    background: #0d9488;
+    color: white;
+    border: none;
+    padding: 10px 20px;
+    border-radius: 6px;
+    font-weight: 600;
+    cursor: pointer;
+  }
+  
+  .primary-btn:hover {
+    background: #0f766e;
+  }
+  
+  .btn-cancel {
+    background: #f1f5f9;
+    border: none;
+    padding: 10px 20px;
+    border-radius: 6px;
+    font-weight: 600;
+    cursor: pointer;
+  }
+  
+  .modal-actions {
+    display: flex;
+    justify-content: flex-end;
+    gap: 12px;
+    margin-top: 28px;
+  }
