@@ -2,7 +2,7 @@
 
 import { useNavigate } from 'react-router-dom';
 import { useState, useEffect } from 'react';
-import Header from '../../components/header';
+import Header from '../../components/Header';
 // Inside your component's return:
 
 export default function DashboardSelection() {
