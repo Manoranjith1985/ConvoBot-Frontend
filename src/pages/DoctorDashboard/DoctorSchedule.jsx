@@ -251,15 +251,16 @@ const DoctorSchedule = () => {
                 {isFuture(selectedAppt.date, selectedAppt.time) && (
                   <button
                     onClick={() => {
+                      const apptId = selectedAppt.id || selectedAppt._id || '';
                       const width = 1200;
                       const height = 900;
                       const left = window.screen.width / 2 - width / 2;
                       const top = window.screen.height / 2 - height / 2;
 
                       window.open(
-                        `/encounter-documentation?apptId=${selectedAppt.id || selectedAppt._id}&patient=${encodeURIComponent(selectedAppt.patient_name)}&date=${selectedAppt.date}&time=${selectedAppt.time}&type=${encodeURIComponent(selectedAppt.visit_type || 'Consultation')}`,
+                        `/encounter-documentation?apptId=${apptId}&patient=${encodeURIComponent(selectedAppt.patient_name)}&date=${selectedAppt.date}&time=${selectedAppt.time}&type=${encodeURIComponent(selectedAppt.visit_type || 'Consultation')}`,
                         'EncounterDoc',
-                        `width=${width},height=${height},top=${top},left=${left},resizable=yes,scrollbars=yes`
+                        'width=1200,height=900,resizable=yes,scrollbars=yes'
                       );
                     }}
                     className="flex-1 bg-teal-600 text-white py-3 px-6 rounded-lg font-medium hover:bg-teal-700 transition-colors min-w-[160px]"
