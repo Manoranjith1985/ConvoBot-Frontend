@@ -1,8 +1,8 @@
 // src/layouts/DoctorLayout.jsx
 import React from 'react';
 import { Outlet, useNavigate } from 'react-router-dom';
-import DoctorHeader from '../components/DoctorHeader';
-import DoctorSideMenu from '../components/DoctorSideMenu';
+import DoctorHeader from '../components/DoctorComponents/DoctorHeader';
+import DoctorSideMenu from '../components/DoctorComponents/DoctorSideMenu';
 
 const doctor = {
     name: "Test OP Doctor",

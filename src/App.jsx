@@ -11,6 +11,7 @@ import DoctorSchedule from './pages/DoctorDashboard/DoctorSchedule.jsx';
 import Patients from './pages/DoctorDashboard/DoctorPatients.jsx';
 import EncounterDocumentation from './pages/DoctorDashboard/EncounterDocumentation.jsx';
 import DoctorProfile from './pages/DoctorDashboard/DoctorProfile.jsx';
+
 function App() {
   return (
     // 💡 BrowserRouter is essential for the router to work
@@ -27,6 +28,7 @@ function App() {
           <Route path="/doctor-schedule" element={<DoctorSchedule/>} />
           <Route path="/doctor-patients" element={<Patients />} />
           <Route path="/doctor-profile" element={<DoctorProfile />} /> 
+
         </Route>
       </Routes>
     </Router>
