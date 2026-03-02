@@ -3,7 +3,7 @@ import React, { useState, useEffect } from 'react';
 import axios from 'axios';
 import { Mic, MicOff, Save } from 'lucide-react';
 
-const API_BASE_URL = import.meta.env.CORE_VITE_API_BASE_URL || 'http://127.0.0.1:8000';
+const API_BASE_URL = import.meta.env.VITE_API_CORE_URL;
 const apiClient = axios.create({ baseURL: API_BASE_URL });
 
 const EncounterDocumentation = () => {
