@@ -1,7 +1,7 @@
 // src/pages/EncounterDocumentation.jsx
 import React, { useState, useEffect } from 'react';
 import axios from 'axios';
-import { Mic, MicOff, Save } from 'lucide-react';
+import { Mic, MicOff, Save, AlertTriangle } from 'lucide-react';
 
 const API_BASE_URL = import.meta.env.VITE_API_CORE_URL;
 const apiClient = axios.create({ baseURL: API_BASE_URL });
@@ -16,14 +16,22 @@ const EncounterDocumentation = () => {
 
   // State
   const [isListening, setIsListening] = useState(false);
-  const [transcript, setTranscript] = useState([]);           // array of {speaker, text}
+  const [transcript, setTranscript] = useState([]);
   const [soapNote, setSoapNote] = useState({
     subjective: '',
     objective: '',
     assessment: '',
     plan: ''
   });
-  const [status, setStatus] = useState('ready'); // ready | listening | processing | signed
+
+  // NEW: Full AI response + extra UI fields
+  const [aiResponse, setAiResponse] = useState(null);
+  const [primaryICD, setPrimaryICD] = useState(null);
+  const [suggestedICD, setSuggestedICD] = useState([]);
+  const [rcmDeficits, setRcmDeficits] = useState([]);
+  const [suggestedMedsExtra, setSuggestedMedsExtra] = useState([]);
+
+  const [status, setStatus] = useState('ready');
   const [recognition, setRecognition] = useState(null);
 
   // Browser Speech Recognition
@@ -44,10 +52,7 @@ const EncounterDocumentation = () => {
         }
       }
       if (finalText) {
-        setTranscript(prev => [...prev, {
-          speaker: 'Doctor',
-          text: finalText.trim()
-        }]);
+        setTranscript(prev => [...prev, { speaker: 'Doctor', text: finalText.trim() }]);
       }
     };
 
@@ -59,15 +64,12 @@ const EncounterDocumentation = () => {
       alert("Speech recognition not supported in this browser.");
       return;
     }
-    if (isListening) {
-      recognition.stop();
-    } else {
-      recognition.start();
-    }
+    if (isListening) recognition.stop();
+    else recognition.start();
     setIsListening(!isListening);
   };
 
-  // Generate Documentation from transcript
+  // ==================== FIXED + ENHANCED MAPPING (handles exact schema you provided) ====================
   const generateDocumentation = async () => {
     if (transcript.length === 0) {
       alert("Please start recording the conversation first.");
@@ -82,24 +84,41 @@ const EncounterDocumentation = () => {
         specialty: 'GENERAL_PRACTICE'
       });
 
-      const aiSoap = res.data.documentation?.soap_note || {};
+      const data = res.data;
 
-      // Flatten to match the simple UI in the screenshot
+      if (data.status !== 'success') {
+        throw new Error(data.message || 'AI processing failed');
+      }
+
+      const soap = data.documentation?.soap_note || {};
+
+      // Core SOAP mapping (matches the exact schema)
       setSoapNote({
-        subjective: `${aiSoap.subjective?.cc || ''}\n${aiSoap.subjective?.hpi || ''}`.trim(),
-        objective:  aiSoap.objective?.exam || '',
-        assessment: aiSoap.assessment?.narrative || '',
-        plan:       aiSoap.plan?.instructions || ''
+        subjective: `${soap.subjective?.cc || ''}\n${soap.subjective?.hpi || ''}`.trim(),
+        objective:  soap.objective?.exam || 'No physical exam details provided.',
+        assessment: (soap.assessment?.icd_codes || []).join(', '),
+        plan: [
+          ...(soap.plan?.cpt_codes || []),
+          ...(soap.plan?.meds || []).map(m => (typeof m === 'string' ? m : m.name || JSON.stringify(m)))
+        ].join('\n')
       });
+
+      // Extra rich data for UI
+      setAiResponse(data);
+      setPrimaryICD(data.coding?.primary_suggestion || null);
+      setSuggestedICD(data.coding?.suggested_icd || []);
+      setRcmDeficits(data.rcm_validation?.deficits || []);
+      setSuggestedMedsExtra(data.suggestions?.meds || []);
 
       setStatus('ready');
     } catch (err) {
+      console.error(err);
       alert('Failed to generate documentation: ' + (err.response?.data?.message || err.message));
       setStatus('ready');
     }
   };
 
-  // Save to EMR (your existing /sign_encounter endpoint)
+  // Save to EMR (kept your original payload - backend expects it)
   const saveToEMR = async () => {
     const payload = {
       soap_note: {
@@ -122,7 +141,7 @@ const EncounterDocumentation = () => {
       setStatus('signed');
       setTimeout(() => window.close(), 1200);
     } catch (err) {
-      alert('Save failed: ' + err.message);
+      alert('Save failed: ' + (err.response?.data?.message || err.message));
     }
   };
 
@@ -166,13 +185,9 @@ const EncounterDocumentation = () => {
               }`}
             >
               {isListening ? (
-                <>
-                  <MicOff size={24} /> Stop Recording
-                </>
+                <> <MicOff size={24} /> Stop Recording </>
               ) : (
-                <>
-                  <Mic size={24} /> Start Recording
-                </>
+                <> <Mic size={24} /> Start Recording </>
               )}
             </button>
 
@@ -191,51 +206,87 @@ const EncounterDocumentation = () => {
           <h2 className="text-xl font-semibold mb-6">AI-Generated Clinical Notes (Editable)</h2>
 
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-            {/* SUBJECTIVE */}
             <div>
               <label className="block text-xs font-semibold tracking-widest text-gray-500 mb-2">SUBJECTIVE</label>
               <textarea
                 value={soapNote.subjective}
                 onChange={(e) => setSoapNote(prev => ({ ...prev, subjective: e.target.value }))}
                 className="w-full h-40 border border-gray-200 rounded-2xl p-5 resize-y focus:outline-none focus:ring-2 focus:ring-blue-500"
-                placeholder="Patient's symptoms and concerns..."
               />
             </div>
 
-            {/* OBJECTIVE */}
             <div>
               <label className="block text-xs font-semibold tracking-widest text-gray-500 mb-2">OBJECTIVE</label>
               <textarea
                 value={soapNote.objective}
                 onChange={(e) => setSoapNote(prev => ({ ...prev, objective: e.target.value }))}
                 className="w-full h-40 border border-gray-200 rounded-2xl p-5 resize-y focus:outline-none focus:ring-2 focus:ring-blue-500"
-                placeholder="Clinical observations..."
               />
             </div>
 
-            {/* ASSESSMENT */}
             <div>
               <label className="block text-xs font-semibold tracking-widest text-gray-500 mb-2">ASSESSMENT</label>
               <textarea
                 value={soapNote.assessment}
                 onChange={(e) => setSoapNote(prev => ({ ...prev, assessment: e.target.value }))}
                 className="w-full h-40 border border-gray-200 rounded-2xl p-5 resize-y focus:outline-none focus:ring-2 focus:ring-blue-500"
-                placeholder="Diagnosis..."
               />
             </div>
 
-            {/* PLAN */}
             <div>
               <label className="block text-xs font-semibold tracking-widest text-gray-500 mb-2">PLAN</label>
               <textarea
                 value={soapNote.plan}
                 onChange={(e) => setSoapNote(prev => ({ ...prev, plan: e.target.value }))}
                 className="w-full h-40 border border-gray-200 rounded-2xl p-5 resize-y focus:outline-none focus:ring-2 focus:ring-blue-500"
-                placeholder="Treatment plan..."
               />
             </div>
           </div>
         </div>
+
+        {/* NEW: AI Coding + RCM Validation Section (uses full schema) */}
+        {aiResponse && (
+          <div className="mt-8 bg-white rounded-3xl shadow p-8">
+            <h2 className="text-xl font-semibold mb-6 flex items-center gap-2">
+              AI Coding &amp; RCM Validation
+            </h2>
+
+            {primaryICD && (
+              <div className="mb-4 p-4 bg-emerald-50 border border-emerald-200 rounded-2xl">
+                <strong className="text-emerald-700">Primary ICD Suggestion:</strong>{' '}
+                <span className="font-medium">{primaryICD}</span>
+              </div>
+            )}
+
+            {suggestedICD.length > 0 && (
+              <div className="mb-4">
+                <strong className="text-gray-700">Suggested ICD Codes:</strong>{' '}
+                {suggestedICD.join(', ')}
+              </div>
+            )}
+
+            {rcmDeficits.length > 0 && (
+              <div className="mb-6 p-4 bg-amber-50 border border-amber-200 rounded-2xl flex gap-3">
+                <AlertTriangle className="text-amber-600 mt-0.5" size={20} />
+                <div>
+                  <strong className="text-amber-700">RCM Alerts:</strong>
+                  <ul className="list-disc ml-5 text-sm mt-1 text-amber-800">
+                    {rcmDeficits.map((def, i) => (
+                      <li key={i}>{def}</li>
+                    ))}
+                  </ul>
+                </div>
+              </div>
+            )}
+
+            {suggestedMedsExtra.length > 0 && (
+              <div>
+                <strong className="text-gray-700">Additional Suggested Medications:</strong>{' '}
+                {suggestedMedsExtra.join(', ')}
+              </div>
+            )}
+          </div>
+        )}
 
         {/* Bottom Action Buttons */}
         <div className="flex justify-end gap-4 mt-10">
@@ -243,17 +294,14 @@ const EncounterDocumentation = () => {
             onClick={saveToEMR}
             className="bg-teal-600 hover:bg-teal-700 text-white px-8 py-3 rounded-2xl flex items-center gap-2 font-medium shadow-sm"
           >
-            <Save size={20} />
-            Save to EMR
+            <Save size={20} /> Save to EMR
           </button>
-
           <button
             onClick={printDocument}
             className="bg-white border border-gray-300 hover:bg-gray-50 px-8 py-3 rounded-2xl flex items-center gap-2 font-medium"
           >
             🖨️ Print
           </button>
-
           <button
             onClick={exportPDF}
             className="bg-white border border-gray-300 hover:bg-gray-50 px-8 py-3 rounded-2xl flex items-center gap-2 font-medium"
