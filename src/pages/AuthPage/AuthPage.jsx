@@ -88,7 +88,7 @@ export default function AuthPage() {
         securityAnswers 
       });  // Debug log
 
-      const response = await fetch(`${API_BASE}/auth/register`, {  // Replace with your endpoint
+      const response = await fetch(`${API_BASE}/users/register`, {  // Replace with your endpoint
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -284,4 +284,5 @@ export default function AuthPage() {
       </div>
     </div>
   );
+
 }
