@@ -2,16 +2,31 @@
 import React, { useState, useMemo, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import axios from 'axios';
+import { Calendar, Download, Filter } from 'lucide-react';
+import * as XLSX from 'xlsx';
+import { saveAs } from 'file-saver';
 import './OPDashboard.css';
 
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://127.0.0.1:8000';
-
 const apiClient = axios.create({ baseURL: API_BASE_URL });
+
+const formatDateDDMMYYYY = (dateStr) => {
+  if (!dateStr) return '—';
+  const d = new Date(dateStr);
+  if (isNaN(d.getTime())) return dateStr;
+  return `${d.getDate().toString().padStart(2, '0')}/${(d.getMonth() + 1).toString().padStart(2, '0')}/${d.getFullYear()}`;
+};
 
 const OPDashboard = () => {
   const navigate = useNavigate();
   const [appointments, setAppointments] = useState([]);
-  const [metrics, setMetrics] = useState({ total_visits: 0, confirmed: 0, pending: 0, capacity: 0 });
+  const [metrics, setMetrics] = useState({
+    total_visits: 0,
+    confirmed: 0,
+    pending: 0,
+    capacity: 0,
+    avg_consult_time_min: '—',
+  });
   const [statusFilter, setStatusFilter] = useState('All');
   const [doctorFilter, setDoctorFilter] = useState('All');
   const [typeFilter, setTypeFilter] = useState('All');
@@ -23,17 +38,15 @@ const OPDashboard = () => {
     const fetchData = async () => {
       try {
         setLoading(true);
-
         const [schedRes, metricsRes] = await Promise.all([
-          apiClient.get(`/appointments/?date=${selectedDate}`),
-          apiClient.get(`/appointments/metrics?date=${selectedDate}`)
+          apiClient.get(`/op/?date=${selectedDate}`),
+          apiClient.get(`/op/metrics?date=${selectedDate}`),
         ]);
 
-        const appts = Array.isArray(schedRes.data.data) ? schedRes.data.data : [];
-        setAppointments(appts);
-        setMetrics(metricsRes.data.data || { total_visits: 0, confirmed: 0, pending: 0, capacity: 0 });
+        setAppointments(Array.isArray(schedRes.data.data) ? schedRes.data.data : []);
+        setMetrics(metricsRes.data.data || metrics);
       } catch (err) {
-        setError('Failed to load data');
+        setError('Failed to load schedule data');
         console.error(err);
       } finally {
         setLoading(false);
@@ -47,8 +60,8 @@ const OPDashboard = () => {
   const uniqueTypes   = useMemo(() => [...new Set(appointments.map(a => a.type))],     [appointments]);
 
   const filteredAppointments = useMemo(() => {
-    let data = [...appointments].sort((a,b) =>
-      (a.time || a.appointment_time || '00:00').localeCompare(b.time || b.appointment_time || '00:00')
+    let data = [...appointments].sort((a, b) =>
+      (a.time || '00:00').localeCompare(b.time || '00:00')
     );
 
     if (statusFilter !== 'All') data = data.filter(a => a.status === statusFilter);
@@ -58,19 +71,47 @@ const OPDashboard = () => {
     return data;
   }, [appointments, statusFilter, doctorFilter, typeFilter]);
 
-  if (loading) return <div className="page-container">Loading...</div>;
-  if (error)   return <div className="page-container">{error}</div>;
+  const exportToExcel = () => {
+    const exportData = filteredAppointments.map(appt => ({
+      Date:         formatDateDDMMYYYY(selectedDate),
+      Time:         appt.time || '—',
+      Patient:      appt.patient || '—',
+      'Patient ID': appt.patient_id || '—',
+      Doctor:       appt.provider || '—',
+      Type:         appt.type || '—',
+      Billing:      appt.billing_type || '—',
+      Insurance:    appt.receiver || appt.insurance_provider || '—',
+      Status:       appt.status || '—',
+      Concerns:     appt.concerns || '—',
+    }));
+
+    const ws = XLSX.utils.json_to_sheet(exportData);
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, 'Schedule');
+    const buffer = XLSX.write(wb, { bookType: 'xlsx', type: 'array' });
+    saveAs(new Blob([buffer]), `Clinic_Schedule_${formatDateDDMMYYYY(selectedDate).replace(/\//g,'-')}.xlsx`);
+  };
+
+  if (loading) return <div className="page-container text-center py-20 text-xl">Loading schedule...</div>;
+  if (error)   return <div className="page-container text-center py-20 text-red-600">{error}</div>;
 
   return (
     <div className="page-container">
       <header className="header-content">
         <div>
           <h1 style={{ color: '#0d9488', margin: 0 }}>Daily Clinic Schedule</h1>
-          <p style={{ color: '#64748b', marginTop: '4px' }}>Managing patient flow and doctor availability</p>
+          <p style={{ color: '#64748b', marginTop: '4px' }}>
+            Managing patient flow • {formatDateDDMMYYYY(selectedDate)}
+          </p>
         </div>
-        <button className="primary-btn" onClick={() => navigate('/new-appointment')}>
-          + New Appointment
-        </button>
+        <div className="flex gap-3">
+          <button className="primary-btn flex items-center gap-2" onClick={exportToExcel}>
+            <Download size={18} /> Export
+          </button>
+          <button className="primary-btn" onClick={() => navigate('/new-appointment')}>
+            + New Appointment
+          </button>
+        </div>
       </header>
 
       <div className="schedule-stats">
@@ -87,39 +128,33 @@ const OPDashboard = () => {
           <span className="stat-value" style={{color:'#f59e0b'}}>{metrics.pending}</span>
         </div>
         <div className="stat-item border-blue">
-          <span className="stat-label">Capacity</span>
-          <span className="stat-value" style={{color:'#6366f1'}}>{metrics.capacity}%</span>
+          <span className="stat-label">Avg Consult Time</span>
+          <span className="stat-value" style={{color:'#6366f1'}}>
+            {metrics.avg_consult_time_min === '—' ? '—' : `${metrics.avg_consult_time_min} min`}
+          </span>
         </div>
       </div>
 
-      <div style={{ background: 'white', borderRadius: '12px', overflow: 'hidden', boxShadow: '0 4px 6px -1px rgba(0,0,0,0.05)' }}>
-        <div className="table-header-row">
-          <h3 style={{ margin: 0 }}>Patient Appointments</h3>
-        </div>
-
-        <div className="filters">
-          <div className="form-group">
-            <label>Date</label>
-            <input type="date" value={selectedDate} onChange={e => setSelectedDate(e.target.value)} />
-          </div>
-          <div className="form-group">
-            <label>Doctor</label>
-            <select value={doctorFilter} onChange={e => setDoctorFilter(e.target.value)}>
+      <div className="bg-white rounded-xl overflow-hidden shadow-sm border border-gray-200">
+        <div className="table-header-row flex justify-between items-center">
+          <h3 style={{ margin: 0 }}>Appointments</h3>
+          <div className="flex items-center gap-3">
+            <div className="flex items-center gap-2 text-sm text-gray-600">
+              <Filter size={16} />
+              Filters
+            </div>
+            <select value={doctorFilter} onChange={e => setDoctorFilter(e.target.value)} className="filter-select">
               <option value="All">All Doctors</option>
               {uniqueDoctors.map(d => <option key={d} value={d}>{d}</option>)}
             </select>
-          </div>
-          <div className="form-group">
-            <label>Status</label>
-            <select value={statusFilter} onChange={e => setStatusFilter(e.target.value)}>
-              <option value="All">All Statuses</option>
+            <select value={statusFilter} onChange={e => setStatusFilter(e.target.value)} className="filter-select">
+              <option value="All">All Status</option>
               <option value="Booked">Booked</option>
               <option value="Pending">Pending</option>
+              <option value="Completed">Completed</option>
+              <option value="Cancelled">Cancelled</option>
             </select>
-          </div>
-          <div className="form-group">
-            <label>Visit Type</label>
-            <select value={typeFilter} onChange={e => setTypeFilter(e.target.value)}>
+            <select value={typeFilter} onChange={e => setTypeFilter(e.target.value)} className="filter-select">
               <option value="All">All Types</option>
               {uniqueTypes.map(t => <option key={t} value={t}>{t}</option>)}
             </select>
@@ -131,6 +166,7 @@ const OPDashboard = () => {
             <tr>
               <th>Time</th>
               <th>Patient</th>
+              <th>File # / EID</th>
               <th>Doctor</th>
               <th>Type</th>
               <th>Billing</th>
@@ -139,30 +175,32 @@ const OPDashboard = () => {
             </tr>
           </thead>
           <tbody>
-            {filteredAppointments.map(appt => (
-              <tr key={appt.id}>
-                <td style={{ fontWeight: 'bold', color: '#0d9488' }}>
-                  {appt.time || '-'}
-                </td>
-                <td>{appt.patient || '-'}</td>
-                <td>{appt.provider || '-'}</td>
-                <td>{appt.type || '-'}</td>
-                <td>{appt.billing_type || '-'}</td>
-                <td>{appt.insurance_provider || '-'}</td>
-                <td>
-                  <span style={{
-                    padding: '4px 12px',
-                    borderRadius: '999px',
-                    fontSize: '0.85rem',
-                    fontWeight: 600,
-                    background: appt.status === 'Booked' ? '#d1fae5' : '#fef3c7',
-                    color: appt.status === 'Booked' ? '#065f46' : '#92400e'
-                  }}>
-                    {appt.status}
-                  </span>
+            {filteredAppointments.length === 0 ? (
+              <tr>
+                <td colSpan="8" className="text-center py-12 text-gray-500 italic">
+                  No appointments found for the selected date and filters
                 </td>
               </tr>
-            ))}
+            ) : (
+              filteredAppointments.map(appt => (
+                <tr key={appt.id} className="hover:bg-teal-50/30 transition-colors">
+                  <td className="font-medium text-teal-700">{appt.time || '—'}</td>
+                  <td>{appt.patient || '—'}</td>
+                  <td className="font-mono text-sm text-gray-600">
+                    {appt.file_number || appt.eid || '—'}
+                  </td>
+                  <td>{appt.provider || '—'}</td>
+                  <td>{appt.type || '—'}</td>
+                  <td>{appt.billing_type || '—'}</td>
+                  <td>{appt.receiver || appt.insurance_provider || '—'}</td>
+                  <td>
+                    <span className={`status-badge ${appt.status?.toLowerCase()}`}>
+                      {appt.status || 'Unknown'}
+                    </span>
+                  </td>
+                </tr>
+              ))
+            )}
           </tbody>
         </table>
       </div>

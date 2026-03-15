@@ -7,12 +7,16 @@ const DoctorHeader = () => {
   const navigate = useNavigate();
   const [dropdownOpen, setDropdownOpen] = useState(false);
 
-  const doctor = {
+  // Simulate auth context – in real app use AuthContext or JWT decode
+  const doctor = JSON.parse(localStorage.getItem('doctor') || JSON.stringify({
     name: "Dr. Test OP Doctor",
     avatar: "https://images.unsplash.com/photo-1612349317150-e413f6a5b16d?w=400",
-  };
+    role: "Outpatient Doctor"
+  }));
 
   const handleLogout = () => {
+    localStorage.removeItem('doctor');
+    localStorage.removeItem('token');
     navigate('/select-role');
   };
 
@@ -38,7 +42,6 @@ const DoctorHeader = () => {
           <Settings className="w-6 h-6 text-gray-600" />
         </button>
 
-        {/* Profile Dropdown */}
         <div className="relative">
           <button
             onClick={() => setDropdownOpen(!dropdownOpen)}
@@ -51,7 +54,7 @@ const DoctorHeader = () => {
             />
             <div className="text-left hidden sm:block">
               <p className="font-semibold text-gray-800 text-sm">{doctor.name}</p>
-              <p className="text-xs text-gray-500">Outpatient Doctor</p>
+              <p className="text-xs text-gray-500">{doctor.role}</p>
             </div>
             <ChevronDown className="w-4 h-4 text-gray-500" />
           </button>

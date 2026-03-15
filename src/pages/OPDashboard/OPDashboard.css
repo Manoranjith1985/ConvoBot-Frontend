@@ -203,3 +203,29 @@
     gap: 12px;
     margin-top: 28px;
   }
+
+  .status-badge {
+    padding: 0.25rem 0.75rem;
+    border-radius: 9999px;
+    font-size: 0.8125rem;
+    font-weight: 600;
+  }
+  
+  .status-badge.booked   { background: #d1fae5; color: #065f46; }
+  .status-badge.pending  { background: #fef3c7; color: #92400e; }
+  .status-badge.completed{ background: #dbeafe; color: #1e40af; }
+  .status-badge.cancelled{ background: #fee2e2; color: #991b1b; }
+  
+  .filter-select {
+    padding: 0.5rem 0.75rem;
+    border: 1px solid #d1d5db;
+    border-radius: 0.5rem;
+    background: white;
+    font-size: 0.875rem;
+  }
+  
+  .filter-select:focus {
+    outline: none;
+    ring: 2px solid #0d9488;
+    border-color: #0d9488;
+  }

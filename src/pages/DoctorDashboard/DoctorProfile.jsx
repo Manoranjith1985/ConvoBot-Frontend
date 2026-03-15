@@ -1,38 +1,40 @@
 // src/pages/DoctorProfile.jsx
 import React, { useState, useEffect } from 'react';
 import axios from 'axios';
-import { useNavigate } from 'react-router-dom';
-import { Calendar, Users, Award, Mail, Phone, LogOut } from 'lucide-react';
-
+import { Calendar, Users, Award, Mail, Phone, LogOut, AlertCircle, FileText } from 'lucide-react';
 
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://127.0.0.1:8000';
-
-const apiClient = axios.create({
-  baseURL: API_BASE_URL,
-});
-
+const apiClient = axios.create({ baseURL: API_BASE_URL });
 
 const DoctorProfile = () => {
-  const navigate = useNavigate();
   const [doctor, setDoctor] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
 
-  // Use real provider name from auth/context later – hardcoded for now
-  const provider = 'Dr. Test OP Doctor';
+  // TODO: replace with real auth
+  const currentDoctor = 'Dr. Test OP Doctor';
 
   useEffect(() => {
     const fetchProfile = async () => {
       try {
-        const res = await apiClient.get(`/doctor/profile?provider=${encodeURIComponent(provider)}`);
-        if (res.data.status === 'success') {
-          setDoctor(res.data.data);
+        const res = await apiClient.get(`/doctor/profile?provider=${encodeURIComponent(currentDoctor)}`);
+        const profileData = res.data?.data || res.data || null;
+        if (profileData) {
+          setDoctor({
+            ...profileData,
+            qualifications: profileData.qualifications || [
+              "MBBS - Gandhi Medical College, Hyderabad",
+              "MD General Medicine - Osmania Medical College",
+              "Fellowship in Diabetology"
+            ],
+            bio: profileData.bio || "Experienced outpatient physician with 12+ years in general medicine and chronic disease management. Special interest in diabetes, hypertension, and preventive care."
+          });
         } else {
-          setError(res.data.message || 'Failed to load profile');
+          setError('Profile data not found');
         }
       } catch (err) {
-        setError('Failed to load profile. Please try again.');
         console.error(err);
+        setError('Failed to load doctor profile');
       } finally {
         setLoading(false);
       }
@@ -42,9 +44,9 @@ const DoctorProfile = () => {
   }, []);
 
   const handleLogout = () => {
-    // Add real logout logic (clear token, redirect, etc.)
-    localStorage.removeItem('token'); // example
-    navigate('/login');
+    // TODO: real logout (clear token, redirect)
+    localStorage.removeItem('token');
+    window.location.href = '/select-role';
   };
 
   if (loading) {
@@ -57,12 +59,14 @@ const DoctorProfile = () => {
 
   if (error || !doctor) {
     return (
-      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
-        <div className="text-center">
-          <p className="text-xl text-red-600 mb-4">{error || 'Profile not found'}</p>
+      <div className="min-h-screen bg-gray-50 flex items-center justify-center p-6">
+        <div className="text-center max-w-md">
+          <AlertCircle className="w-16 h-16 text-red-500 mx-auto mb-6" />
+          <h2 className="text-2xl font-semibold mb-4">Unable to load profile</h2>
+          <p className="text-gray-600 mb-6">{error || 'Profile information not available'}</p>
           <button 
             onClick={() => window.location.reload()}
-            className="px-6 py-3 bg-teal-600 text-white rounded-lg hover:bg-teal-700 transition-colors"
+            className="bg-teal-600 text-white px-8 py-3 rounded-lg hover:bg-teal-700"
           >
             Retry
           </button>
@@ -74,90 +78,91 @@ const DoctorProfile = () => {
   return (
     <div className="min-h-screen bg-gray-50 py-8 px-4 sm:px-6 lg:px-8">
       <div className="max-w-5xl mx-auto">
-        {/* Header */}
-        <div className="flex justify-between items-center mb-10">
-          <h1 className="text-4xl font-bold text-teal-700 tracking-tight">My Profile</h1>
+        <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-10 gap-4">
+          <h1 className="text-3xl md:text-4xl font-bold text-teal-800">My Profile</h1>
           <button
             onClick={handleLogout}
-            className="flex items-center gap-2 px-5 py-2.5 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 text-gray-700 hover:text-teal-700 transition-colors"
+            className="flex items-center gap-2 px-6 py-2.5 bg-white border border-red-200 text-red-600 rounded-lg hover:bg-red-50 transition-colors"
           >
             <LogOut size={18} />
-            <span>Logout</span>
+            Logout
           </button>
         </div>
 
-        {/* Main Profile Card */}
-        <div className="bg-white rounded-2xl shadow-lg overflow-hidden border border-gray-200">
-          {/* Profile Banner */}
-          <div className="bg-gradient-to-r from-teal-600 to-teal-800 px-8 py-12 text-white">
-            <div className="flex flex-col md:flex-row items-center md:items-start gap-8">
+        <div className="bg-white rounded-2xl shadow-md overflow-hidden border border-gray-100">
+          {/* Header / Cover */}
+          <div className="h-48 bg-gradient-to-r from-teal-600 to-teal-800 relative">
+            <div className="absolute -bottom-16 left-8">
               <img
-                src={doctor.avatar}
+                src={doctor.avatar || "https://images.unsplash.com/photo-1612349317150-e413f6a5b16d?w=400"}
                 alt={doctor.name}
-                className="w-32 h-32 rounded-full border-4 border-white object-cover shadow-xl"
+                className="w-32 h-32 rounded-full border-4 border-white object-cover shadow-lg"
               />
-              <div className="text-center md:text-left">
-                <h2 className="text-4xl font-bold">{doctor.name}</h2>
-                <p className="text-xl mt-2 opacity-90">{doctor.specialty}</p>
-                <div className="mt-4 flex flex-wrap gap-6 justify-center md:justify-start">
-                  <div className="flex items-center gap-2">
-                    <Calendar size={18} />
-                    <span>{doctor.experience}</span>
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <Users size={18} />
-                    <span>{doctor.totalPatients} Patients</span>
-                  </div>
-                </div>
-              </div>
             </div>
           </div>
 
-          {/* Profile Content */}
-          <div className="p-8 lg:p-12 space-y-12">
-            {/* Bio */}
-            <div>
-              <h3 className="text-2xl font-semibold text-teal-700 mb-4">About Me</h3>
-              <p className="text-gray-700 leading-relaxed">{doctor.bio}</p>
+          {/* Main Content */}
+          <div className="pt-20 px-8 pb-10">
+            <div className="mb-8">
+              <h2 className="text-3xl font-bold text-gray-900">{doctor.name}</h2>
+              <p className="text-xl text-teal-700 font-medium mt-1">{doctor.specialty || 'General Physician'}</p>
+              <div className="flex flex-wrap gap-6 mt-4 text-gray-600">
+                <div className="flex items-center gap-2">
+                  <Award size={18} />
+                  <span>{doctor.experience || '12 Years Experience'}</span>
+                </div>
+                <div className="flex items-center gap-2">
+                  <Users size={18} />
+                  <span>{doctor.totalPatients || '1,247'} Patients Treated</span>
+                </div>
+              </div>
             </div>
 
-            {/* Contact Info */}
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-              <div className="bg-teal-50 p-6 rounded-xl border border-teal-100">
-                <h4 className="text-lg font-semibold text-teal-700 mb-4">Contact Information</h4>
-                <div className="space-y-4">
-                  <div className="flex items-center gap-4">
-                    <div className="w-10 h-10 bg-teal-100 text-teal-600 rounded-full flex items-center justify-center">
-                      <Mail size={18} />
+            <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+              {/* About */}
+              <div className="lg:col-span-2">
+                <h3 className="text-xl font-semibold mb-4 flex items-center gap-2">
+                  <FileText size={20} className="text-teal-600" />
+                  About Me
+                </h3>
+                <p className="text-gray-700 leading-relaxed whitespace-pre-line">
+                  {doctor.bio}
+                </p>
+              </div>
+
+              {/* Contact & Stats */}
+              <div className="space-y-6">
+                <div className="bg-teal-50 p-6 rounded-xl">
+                  <h4 className="font-semibold mb-4 text-teal-800">Contact Information</h4>
+                  <div className="space-y-4">
+                    <div className="flex items-center gap-3">
+                      <Mail size={18} className="text-teal-600" />
+                      <div>
+                        <p className="text-sm text-gray-500">Email</p>
+                        <p className="font-medium">{doctor.email || 'doctor@example.com'}</p>
+                      </div>
                     </div>
-                    <div>
-                      <p className="text-sm text-gray-500">Email</p>
-                      <p className="font-medium text-gray-800">{doctor.email}</p>
-                    </div>
-                  </div>
-                  <div className="flex items-center gap-4">
-                    <div className="w-10 h-10 bg-teal-100 text-teal-600 rounded-full flex items-center justify-center">
-                      <Phone size={18} />
-                    </div>
-                    <div>
-                      <p className="text-sm text-gray-500">Phone</p>
-                      <p className="font-medium text-gray-800">{doctor.phone}</p>
+                    <div className="flex items-center gap-3">
+                      <Phone size={18} className="text-teal-600" />
+                      <div>
+                        <p className="text-sm text-gray-500">Phone</p>
+                        <p className="font-medium">{doctor.phone || '+91 98765 43210'}</p>
+                      </div>
                     </div>
                   </div>
                 </div>
-              </div>
 
-              {/* Qualifications */}
-              <div className="bg-teal-50 p-6 rounded-xl border border-teal-100">
-                <h4 className="text-lg font-semibold text-teal-700 mb-4">Qualifications</h4>
-                <ul className="space-y-3">
-                  {doctor.qualifications.map((q, i) => (
-                    <li key={i} className="flex items-start gap-3 text-gray-700">
-                      <span className="text-teal-600 mt-1">•</span>
-                      {q}
-                    </li>
-                  ))}
-                </ul>
+                <div className="bg-gray-50 p-6 rounded-xl">
+                  <h4 className="font-semibold mb-4 text-gray-800">Qualifications</h4>
+                  <ul className="space-y-2">
+                    {doctor.qualifications.map((q, i) => (
+                      <li key={i} className="flex items-start gap-2 text-gray-700">
+                        <span className="text-teal-600 mt-1">•</span>
+                        {q}
+                      </li>
+                    ))}
+                  </ul>
+                </div>
               </div>
             </div>
           </div>

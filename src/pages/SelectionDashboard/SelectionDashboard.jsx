@@ -39,7 +39,7 @@ export default function DashboardSelection() {
       description: 'Manage users, roles, settings, audit logs & system configuration',
       icon: <span className="text-5xl">💼</span>,
       color: 'from-amber-500 to-orange-600',
-      route: '/admin-dashboard',
+      route: '/clinic-admin',
       disabled: false,
     },
     {
