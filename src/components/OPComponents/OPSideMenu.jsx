@@ -14,11 +14,6 @@ const OPSideMenu = () => {
     { path: '/op-dashboard', label: 'Dashboard', icon: LayoutDashboard },
     { path: '/op-patients', label: 'Patients', icon: Users },
     { path: '/op-doctors', label: 'Doctors', icon: Stethoscope },
-    { path: '/op-schedule', label: 'Doctor Schedules', icon: Calendar },
-    { path: '/op-today-queue', label: "Today's Queue", icon: Clock },
-    { path: '/op-reports', label: 'Reports', icon: FileText },
-    { path: '/op-vitals', label: 'Vitals Entry', icon: Activity, comingSoon: true },
-    { path: '/op-settings', label: 'Settings', icon: Settings },
   ];
 
   return (
@@ -30,7 +25,7 @@ const OPSideMenu = () => {
         </div>
         <div>
           <h1 className="text-xl font-bold text-teal-800">OP Reception</h1>
-          <p className="text-xs text-teal-700/80">Vijayawada Clinic</p>
+          <p className="text-xs text-teal-700/80">Chennai Clinic</p>
         </div>
       </div>
 

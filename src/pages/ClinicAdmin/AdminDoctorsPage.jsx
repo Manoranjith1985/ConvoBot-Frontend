@@ -229,143 +229,174 @@ const AdminDoctorsPage = ({ role = 'Clinic Admin', primaryColor = '#0d9488' }) =
         onSave={handleFormSave}
       />
 
-      {/* Doctor Detail Popup */}
       {selectedDoctor && (
         <div
           className="fixed inset-0 bg-black/70 flex items-center justify-center z-50 p-4 overflow-y-auto"
           onClick={() => setSelectedDoctor(null)}
         >
           <div
-            className="bg-white rounded-3xl max-w-4xl w-full mx-4 p-6 sm:p-8 relative"
+            className="
+              bg-white rounded-3xl max-w-3xl w-full mx-4 
+              max-h-[90vh] overflow-y-auto shadow-2xl
+              scrollbar-thin scrollbar-thumb-gray-300 scrollbar-track-gray-100
+            "
             onClick={e => e.stopPropagation()}
           >
-            <button
-              onClick={() => setSelectedDoctor(null)}
-              className="absolute top-4 right-4 text-gray-500 hover:text-gray-800"
-            >
-              <X size={28} />
-            </button>
-
-            <div className="flex flex-col sm:flex-row gap-6 mb-8">
-              <div className="w-32 h-32 sm:w-40 sm:h-40 rounded-2xl overflow-hidden flex-shrink-0">
-                {selectedDoctor.avatar ? (
-                  <img
-                    src={selectedDoctor.avatar}
-                    alt={selectedDoctor.name}
-                    className="w-full h-full object-cover"
-                  />
-                ) : (
-                  <div className="w-full h-full bg-[var(--primary-color)]/10 flex items-center justify-center text-[var(--primary-color)] font-bold text-4xl">
-                    {selectedDoctor.name?.[0] || '?'}
-                  </div>
-                )}
-              </div>
-              <div className="flex-1">
-                <h2 className="text-3xl font-bold text-gray-900">{selectedDoctor.name}</h2>
-                <p className="text-xl font-medium text-[var(--primary-color)] mt-1">{selectedDoctor.specialty}</p>
-                <div className="flex flex-wrap gap-x-6 gap-y-2 mt-4 text-sm text-gray-600">
-                  <span className="flex items-center gap-1.5">
-                    <Award size={16} /> {selectedDoctor.experience || '?'} years exp
-                  </span>
-                  <span className="flex items-center gap-1.5">
-                    <Clock size={16} /> Avg {selectedDoctor.average_time_per_patient || '?'} min/patient
-                  </span>
-                  <span className="flex items-center gap-1.5">
-                    <Users size={16} /> {selectedDoctor.totalPatients || 0} patients
-                  </span>
-                </div>
-                {selectedDoctor.email && (
-                  <p className="mt-2 text-gray-700">{selectedDoctor.email}</p>
-                )}
-                {selectedDoctor.phone && (
-                  <p className="text-gray-700">{selectedDoctor.phone}</p>
-                )}
-              </div>
-            </div>
-
-            {/* Qualifications */}
-            {selectedDoctor.qualifications?.length > 0 && (
-              <div className="mb-6">
-                <h3 className="font-semibold mb-2">Qualifications</h3>
-                <div className="flex flex-wrap gap-2">
-                  {selectedDoctor.qualifications.map((q, i) => (
-                    <span key={i} className="bg-indigo-50 text-indigo-800 px-3 py-1 rounded-full text-sm">
-                      {q}
-                    </span>
-                  ))}
-                </div>
-              </div>
-            )}
-
-            {/* Today's Schedule */}
-            <div className="mb-8">
-              <h3 className="font-semibold text-lg mb-4 flex items-center gap-2">
-                <Calendar size={18} /> Today's Schedule
-              </h3>
-              {selectedDoctor.today_appointments?.length > 0 ? (
-                <div className="space-y-3">
-                  {selectedDoctor.today_appointments.map((a, i) => (
-                    <div key={i} className="bg-gray-50 p-4 rounded-2xl flex justify-between items-center">
-                      <span className="font-medium">{a.time}</span>
-                      <span className="text-gray-700">{a.patient_name}</span>
-                    </div>
-                  ))}
-                </div>
-              ) : (
-                <p className="text-gray-500 italic">No appointments today</p>
-              )}
-            </div>
-
-            {/* Actions */}
-            <div className="flex flex-wrap gap-3 mb-8">
-            <button
-              onClick={() => setShowReferModal(true)}
-              className="px-5 py-2.5 bg-blue-600 text-white rounded-xl hover:bg-blue-700 flex items-center gap-2"
-            >
-              <Users size={16} /> Refer Patient
-            </button>
-              <button
-                onClick={() => handleOpenEdit(selectedDoctor)}
-                className="px-5 py-2.5 bg-amber-600 text-white rounded-xl hover:bg-amber-700 flex items-center gap-2"
-              >
-                <Edit size={16} /> Edit Profile
-              </button>
-              <button
-                onClick={() => setDeleteConfirmId(selectedDoctor._id || selectedDoctor.id)}
-                className="px-5 py-2.5 bg-red-600 text-white rounded-xl hover:bg-red-700 flex items-center gap-2"
-              >
-                <Trash2 size={16} /> Delete
-              </button>
-            </div>
-
-            {/* Reports */}
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
+            {/* Sticky Header */}
+            <div className="sticky top-0 bg-white z-10 p-6 border-b flex justify-between items-center rounded-t-3xl">
               <div>
-                <h3 className="font-semibold text-lg mb-3 flex items-center gap-2">
-                  <FileText size={18} /> Timestamp Report
+                <h2 className="text-2xl sm:text-3xl font-bold text-gray-900">
+                  {selectedDoctor.name}
+                </h2>
+                <p className="text-lg text-[var(--primary-color)] mt-1">
+                  {selectedDoctor.specialty || 'General Physician'}
+                </p>
+              </div>
+              <button
+                onClick={() => setSelectedDoctor(null)}
+                className="text-gray-500 hover:text-gray-800 transition-colors"
+              >
+                <X size={28} />
+              </button>
+            </div>
+
+            {/* Content */}
+            <div className="p-6 space-y-8">
+              {/* Avatar & Quick Stats */}
+              <div className="flex flex-col sm:flex-row gap-6 items-start sm:items-center">
+                <div className="w-32 h-32 sm:w-40 sm:h-40 rounded-2xl overflow-hidden flex-shrink-0 bg-gray-100">
+                  {selectedDoctor.avatar ? (
+                    <img
+                      src={selectedDoctor.avatar}
+                      alt={selectedDoctor.name}
+                      className="w-full h-full object-cover"
+                    />
+                  ) : (
+                    <div className="w-full h-full flex items-center justify-center text-[var(--primary-color)] text-4xl font-bold">
+                      {selectedDoctor.name?.[0] || '?'}
+                    </div>
+                  )}
+                </div>
+
+                <div className="flex-1 space-y-4">
+                  <div className="grid grid-cols-2 sm:grid-cols-3 gap-4 text-sm">
+                    <div>
+                      <div className="text-gray-500">Experience</div>
+                      <div className="font-medium">{selectedDoctor.experience || '?'} years</div>
+                    </div>
+                    <div>
+                      <div className="text-gray-500">Avg Time / Patient</div>
+                      <div className="font-medium">{selectedDoctor.average_time_per_patient || '?'} min</div>
+                    </div>
+                    <div>
+                      <div className="text-gray-500">Total Patients</div>
+                      <div className="font-medium">{selectedDoctor.totalPatients || 0}</div>
+                    </div>
+                  </div>
+
+                  {selectedDoctor.email && (
+                    <p className="text-gray-700">{selectedDoctor.email}</p>
+                  )}
+                  {selectedDoctor.phone && (
+                    <p className="text-gray-700">{selectedDoctor.phone}</p>
+                  )}
+                </div>
+              </div>
+
+              {/* Qualifications */}
+              {selectedDoctor.qualifications?.length > 0 && (
+                <div>
+                  <h3 className="font-semibold text-lg mb-3">Qualifications</h3>
+                  <div className="flex flex-wrap gap-2">
+                    {selectedDoctor.qualifications.map((q, i) => (
+                      <span
+                        key={i}
+                        className="bg-indigo-50 text-indigo-800 px-3 py-1 rounded-full text-sm"
+                      >
+                        {q}
+                      </span>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {/* Today's Schedule */}
+              <div>
+                <h3 className="font-semibold text-lg mb-4 flex items-center gap-2">
+                  <Calendar size={18} /> Today's Schedule
                 </h3>
+                {selectedDoctor.today_appointments?.length > 0 ? (
+                  <div className="space-y-3">
+                    {selectedDoctor.today_appointments.map((a, i) => (
+                      <div
+                        key={i}
+                        className="bg-gray-50 p-4 rounded-xl flex flex-col sm:flex-row sm:justify-between sm:items-center gap-3"
+                      >
+                        <div>
+                          <div className="font-medium">{a.time}</div>
+                          <div className="text-sm text-gray-600">{a.patient_name}</div>
+                        </div>
+                        <span className="px-3 py-1 bg-teal-100 text-teal-800 rounded-full text-sm font-medium self-start sm:self-center">
+                          {a.visit_type || 'Consultation'}
+                        </span>
+                      </div>
+                    ))}
+                  </div>
+                ) : (
+                  <p className="text-gray-500 italic bg-gray-50 p-4 rounded-xl">
+                    No appointments scheduled today
+                  </p>
+                )}
+              </div>
+
+              {/* Actions */}
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                <button className="py-3 bg-blue-600 text-white rounded-xl hover:bg-blue-700 flex items-center justify-center gap-2">
+                  <Users size={18} /> Refer Patient
+                </button>
                 <button
-                  onClick={downloadReport}
-                  className="w-full py-3 bg-[var(--primary-color)] text-white rounded-xl hover:opacity-90 flex items-center justify-center gap-2"
+                  onClick={() => handleOpenEdit(selectedDoctor)}
+                  className="py-3 bg-amber-600 text-white rounded-xl hover:bg-amber-700 flex items-center justify-center gap-2"
                 >
-                  <Download size={18} /> Download Report
+                  <Edit size={18} /> Edit Profile
+                </button>
+                <button
+                  onClick={() => setDeleteConfirmId(selectedDoctor._id || selectedDoctor.id)}
+                  className="py-3 bg-red-600 text-white rounded-xl hover:bg-red-700 flex items-center justify-center gap-2"
+                >
+                  <Trash2 size={18} /> Delete
                 </button>
               </div>
 
-              {isSuperAdmin && (
+              {/* Reports & Audit */}
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
                 <div>
                   <h3 className="font-semibold text-lg mb-3 flex items-center gap-2">
-                    <AlertTriangle size={18} className="text-amber-600" /> Audit
+                    <FileText size={18} /> Timestamp Report
                   </h3>
-                  <button className="w-full py-3 border border-amber-600 text-amber-700 rounded-xl hover:bg-amber-50 flex items-center justify-center gap-2">
-                    <FileText size={16} /> View Audit Trail
+                  <button
+                    onClick={downloadReport}
+                    className="w-full py-3 bg-[var(--primary-color)] text-white rounded-xl hover:opacity-90 flex items-center justify-center gap-2"
+                  >
+                    <Download size={18} /> Download Report
                   </button>
                 </div>
-              )}
+
+                {role === 'Super Admin' && (
+                  <div>
+                    <h3 className="font-semibold text-lg mb-3 flex items-center gap-2">
+                      <AlertTriangle size={18} className="text-amber-600" /> Audit Trail
+                    </h3>
+                    <button className="w-full py-3 border border-amber-600 text-amber-700 rounded-xl hover:bg-amber-50 flex items-center justify-center gap-2">
+                      <FileText size={16} /> View Audit Trail
+                    </button>
+                  </div>
+                )}
+              </div>
             </div>
           </div>
         </div>
-      )}
+)}
 
       {/* Delete Confirmation */}
       {deleteConfirmId && (

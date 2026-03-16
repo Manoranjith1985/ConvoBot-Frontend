@@ -82,18 +82,6 @@ const AdminHeader = ({
           </div>
 
           {/* Temporary Role Selector – for testing only */}
-          <div className="relative">
-            <select
-              value={selectedRole}
-              onChange={handleRoleChange}
-              className="bg-gray-100 border border-gray-300 text-gray-700 text-sm rounded-lg px-3 py-1.5 focus:outline-none focus:ring-2 focus:ring-[var(--primary-color)]"
-            >
-              <option value="Clinic Admin">Clinic Admin</option>
-              <option value="Group Admin">Group Admin</option>
-              <option value="Super Admin">Super Admin</option>
-            </select>
-          </div>
-
           {/* Notifications */}
           <button className="relative p-2 hover:bg-gray-100 rounded-xl transition-colors">
             <Bell size={22} className="text-gray-600" />

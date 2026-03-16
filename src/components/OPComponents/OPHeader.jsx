@@ -9,7 +9,7 @@ const OPHeader = () => {
   const handleLogout = () => {
     // TODO: real logout logic (clear token, redirect to login)
     if (window.confirm("Are you sure you want to log out?")) {
-      navigate('/login');
+      navigate('/select-role');
     }
   };
 

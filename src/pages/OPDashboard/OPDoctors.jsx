@@ -1,22 +1,18 @@
 // src/pages/OPDashboard/OPDoctors.jsx
 import React, { useState, useEffect } from 'react';
 import axios from 'axios';
-import { Clock, Calendar, UserPlus, ChevronRight } from 'lucide-react';
+import { Clock, Calendar, ChevronRight, AlertTriangle, X } from 'lucide-react';
 import useEscapeKey from '../../hooks/UseEscapeKey';
 
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://127.0.0.1:8000';
 const apiClient = axios.create({ baseURL: API_BASE_URL });
 
-const formatDateDDMMYYYY = (dateStr) => {
-  if (!dateStr) return '—';
-  const d = new Date(dateStr);
-  return `${d.getDate().toString().padStart(2,'0')}/${(d.getMonth()+1).toString().padStart(2,'0')}/${d.getFullYear()}`;
-};
-
 const OPDoctors = () => {
   const [doctors, setDoctors] = useState([]);
   const [selectedDoctor, setSelectedDoctor] = useState(null);
+  const [todaySchedule, setTodaySchedule] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [scheduleLoading, setScheduleLoading] = useState(false);
   const [error, setError] = useState(null);
 
   useEscapeKey(() => setSelectedDoctor(null));
@@ -28,24 +24,8 @@ const OPDoctors = () => {
         const res = await apiClient.get('/op/doctors');
         setDoctors(res.data?.data || []);
       } catch (err) {
-        console.error(err);
+        console.error('Doctors fetch error:', err);
         setError('Failed to load doctors');
-        // fallback data
-        setDoctors([
-          {
-            id: "D001",
-            name: "Dr. Rajesh Kumar",
-            specialty: "General Physician",
-            avatar: "https://images.unsplash.com/photo-1612349317150-e413f6a5b16d?w=150",
-            shift: "09:00 – 17:00",
-            status: "Available",
-            phone: "+91 98765 43210",
-            experience: "12 years",
-            today_patients: 18,
-            max_patients: 25,
-            todaySchedule: []
-          }
-        ]);
       } finally {
         setLoading(false);
       }
@@ -53,138 +33,180 @@ const OPDoctors = () => {
     fetchDoctors();
   }, []);
 
-  const getStatusStyle = (status) => {
-    if (status === "Available") return "bg-emerald-100 text-emerald-700 border-emerald-200";
-    if (status === "Busy")     return "bg-amber-100 text-amber-700 border-amber-200";
-    return "bg-gray-100 text-gray-700 border-gray-200";
+  useEffect(() => {
+    if (selectedDoctor) {
+      fetchTodaySchedule(selectedDoctor._id);
+    }
+  }, [selectedDoctor]);
+
+  const fetchTodaySchedule = async (doctorId) => {
+    try {
+      setScheduleLoading(true);
+      const res = await apiClient.get(`/op/doctors/${doctorId}/today-schedule`);
+      setTodaySchedule(res.data.data || []);
+    } catch (err) {
+      console.error('Today schedule error:', err);
+    } finally {
+      setScheduleLoading(false);
+    }
   };
 
-  if (loading) return <div className="text-center py-20 text-xl text-gray-600">Loading doctors on duty...</div>;
-  if (error)   return <div className="text-center py-20 text-red-600 font-medium">{error}</div>;
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center min-h-screen bg-gray-50">
+        <div className="text-lg text-gray-600 animate-pulse">Loading doctors...</div>
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="flex items-center justify-center min-h-screen bg-gray-50">
+        <div className="text-red-600 text-center">{error}</div>
+      </div>
+    );
+  }
 
   return (
-    <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-10 gap-4">
-        <div>
-          <h1 className="text-4xl font-bold text-teal-700">Doctors on Duty</h1>
-          <p className="text-gray-600 mt-1">Current availability & schedule overview</p>
-        </div>
-        <button className="primary-btn flex items-center gap-2">
-          <UserPlus size={18} /> Add Doctor
-        </button>
-      </div>
+    <div className="min-h-screen bg-gray-50 p-6">
+      <h1 className="text-3xl font-bold text-gray-900 mb-8">OP Doctors</h1>
 
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-        {doctors.map((doc) => (
+        {doctors.map(doc => (
           <div
             key={doc.id}
+            className="bg-white rounded-2xl shadow-md p-6 cursor-pointer hover:shadow-lg transition-all duration-200 border border-gray-200 hover:border-teal-300"
             onClick={() => setSelectedDoctor(doc)}
-            className="bg-white rounded-2xl shadow-md p-6 cursor-pointer hover:shadow-xl transition-all border border-gray-100 hover:border-teal-200 group"
           >
-            <div className="flex items-start gap-4">
+            <div className="flex items-center gap-4 mb-4">
               <img
-                src={doc.avatar}
+                src={doc.avatar || 'https://via.placeholder.com/80'}
                 alt={doc.name}
-                className="w-16 h-16 rounded-xl object-cover border-2 border-white shadow-sm"
+                className="w-20 h-20 rounded-full object-cover border-2 border-gray-200"
               />
               <div className="flex-1">
-                <h3 className="font-semibold text-xl text-gray-900 group-hover:text-teal-700 transition-colors">
-                  {doc.name}
-                </h3>
-                <p className="text-teal-600 font-medium">{doc.specialty}</p>
-                <div className="mt-2 flex items-center gap-1.5 text-sm text-gray-600">
-                  <Clock size={15} />
-                  <span>{doc.shift}</span>
-                </div>
-              </div>
-              <div className={`px-3.5 py-1 text-xs font-medium rounded-full border ${getStatusStyle(doc.status)}`}>
-                {doc.status}
+                <h2 className="text-xl font-bold text-gray-900">{doc.name}</h2>
+                <p className="text-teal-600 font-medium">{doc.specialty || 'General Physician'}</p>
               </div>
             </div>
 
-            <div className="mt-5 pt-5 border-t border-gray-100 grid grid-cols-2 gap-4 text-sm">
-              <div>
-                <p className="text-gray-500">Today's patients</p>
-                <p className="font-semibold text-gray-900">
-                  {doc.today_patients || 0} / {doc.max_patients || '—'}
-                </p>
-              </div>
-              <div>
-                <p className="text-gray-500">Experience</p>
-                <p className="font-semibold text-gray-900">{doc.experience || '—'}</p>
-              </div>
+            <div className="space-y-3 text-sm text-gray-700">
+              <p className="flex items-center gap-2">
+                <Clock size={16} className="text-gray-500" />
+                <span className={doc.today_shift.includes('Not') ? 'text-amber-600' : 'text-green-700'}>
+                  {doc.today_shift}
+                </span>
+              </p>
+              <p className="flex items-center gap-2">
+                <Calendar size={16} className="text-gray-500" />
+                <span>Experience: {doc.experience || 'N/A'}</span>
+              </p>
             </div>
 
-            <button className="mt-6 w-full py-2.5 bg-teal-50 hover:bg-teal-100 text-teal-700 font-medium rounded-xl transition-colors flex items-center justify-center gap-2">
-              View Schedule <ChevronRight size={16} />
-            </button>
+            <div className="mt-5 flex justify-end">
+              <ChevronRight size={20} className="text-teal-600" />
+            </div>
           </div>
         ))}
+
+        {doctors.length === 0 && (
+          <p className="col-span-full text-center text-gray-500 py-12 text-lg">
+            No doctors available today
+          </p>
+        )}
       </div>
 
-      {/* Doctor Detail Modal */}
+      {/* Doctor Detail Popup */}
       {selectedDoctor && (
         <div
-          className="fixed inset-0 bg-black/60 flex items-center justify-center z-50 p-4"
+          className="fixed inset-0 bg-black/70 flex items-center justify-center z-50 p-4 overflow-y-auto"
           onClick={() => setSelectedDoctor(null)}
         >
           <div
-            className="bg-white rounded-2xl max-w-2xl w-full max-h-[90vh] overflow-y-auto"
+            className="
+              bg-white rounded-3xl max-w-3xl w-full 
+              max-h-[90vh] overflow-y-auto shadow-2xl
+              scrollbar-thin scrollbar-thumb-gray-300 scrollbar-track-gray-100
+            "
             onClick={e => e.stopPropagation()}
           >
-            <div className="p-6 border-b flex items-center gap-4 bg-gray-50">
-              <img
-                src={selectedDoctor.avatar}
-                alt=""
-                className="w-16 h-16 rounded-xl object-cover border-2 border-teal-100"
-              />
+            {/* Sticky Header */}
+            <div className="sticky top-0 bg-white p-6 border-b flex justify-between items-center rounded-t-3xl z-10">
               <div>
-                <h2 className="text-2xl font-bold text-gray-900">{selectedDoctor.name}</h2>
-                <p className="text-teal-600 font-medium">{selectedDoctor.specialty}</p>
+                <h2 className="text-3xl font-bold text-gray-900">{selectedDoctor.name}</h2>
+                <p className="text-xl text-teal-600 mt-1">{selectedDoctor.specialty || 'General Physician'}</p>
               </div>
+              <button
+                onClick={() => setSelectedDoctor(null)}
+                className="text-gray-500 hover:text-gray-800 transition-colors"
+              >
+                <X size={28} />
+              </button>
             </div>
 
-            <div className="p-6 space-y-6">
-              <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
-                <div className="bg-teal-50 p-4 rounded-xl">
-                  <p className="text-sm text-teal-700 font-medium">Shift</p>
-                  <p className="text-lg font-semibold">{selectedDoctor.shift}</p>
-                </div>
-                <div className="bg-emerald-50 p-4 rounded-xl">
-                  <p className="text-sm text-emerald-700 font-medium">Status</p>
-                  <p className="text-lg font-semibold">{selectedDoctor.status}</p>
-                </div>
-                <div className="bg-amber-50 p-4 rounded-xl">
-                  <p className="text-sm text-amber-700 font-medium">Today</p>
-                  <p className="text-lg font-semibold">
-                    {selectedDoctor.today_patients || 0} / {selectedDoctor.max_patients || '—'}
-                  </p>
-                </div>
-                <div className="bg-blue-50 p-4 rounded-xl">
-                  <p className="text-sm text-blue-700 font-medium">Avg Time</p>
-                  <p className="text-lg font-semibold">— min</p>
+            <div className="p-6 space-y-8">
+              {/* Quick Info */}
+              <div className="flex flex-col sm:flex-row gap-6 items-start sm:items-center">
+                <img
+                  src={selectedDoctor.avatar || 'https://via.placeholder.com/160'}
+                  alt={selectedDoctor.name}
+                  className="w-40 h-40 rounded-2xl object-cover border-4 border-gray-100"
+                />
+                <div className="flex-1 space-y-4">
+                  <div className="grid grid-cols-2 sm:grid-cols-3 gap-4 text-sm">
+                    <div>
+                      <div className="text-gray-500">Experience</div>
+                      <div className="font-medium">{selectedDoctor.experience || 'N/A'}</div>
+                    </div>
+                    <div>
+                      <div className="text-gray-500">Today's Shift</div>
+                      <div className={`font-medium ${selectedDoctor.today_shift.includes('Not') ? 'text-amber-600' : 'text-green-700'}`}>
+                        {selectedDoctor.today_shift}
+                      </div>
+                    </div>
+                  </div>
+                  <p className="text-gray-700">{selectedDoctor.phone || 'No phone listed'}</p>
                 </div>
               </div>
 
+              {/* Today's Appointments */}
               <div>
-                <h3 className="font-semibold text-lg mb-3 flex items-center gap-2">
-                  <Calendar size={18} /> Today's Schedule
+                <h3 className="font-semibold text-lg mb-4 flex items-center gap-2">
+                  <Calendar size={18} /> Today's Appointments
                 </h3>
-                <div className="bg-gray-50 rounded-xl p-5 text-center text-gray-500 italic">
-                  No appointments scheduled yet (real schedule integration pending)
-                </div>
+                {scheduleLoading ? (
+                  <p className="text-center text-gray-500 py-6 animate-pulse">Loading...</p>
+                ) : todaySchedule.length > 0 ? (
+                  <div className="space-y-3">
+                    {todaySchedule.map((appt, i) => (
+                      <div
+                        key={i}
+                        className="bg-gray-50 p-4 rounded-xl flex justify-between items-center border border-gray-200"
+                      >
+                        <div>
+                          <div className="font-medium text-gray-900">{appt.time}</div>
+                          <div className="text-sm text-gray-600">{appt.patient_name}</div>
+                        </div>
+                        <span className="px-3 py-1 bg-teal-100 text-teal-800 rounded-full text-sm font-medium">
+                          {appt.visit_type || 'Consultation'}
+                        </span>
+                      </div>
+                    ))}
+                  </div>
+                ) : (
+                  <div className="bg-gray-50 p-6 rounded-xl text-center text-gray-500 italic">
+                    No appointments scheduled for today
+                  </div>
+                )}
               </div>
             </div>
 
-            <div className="p-6 border-t bg-gray-50 flex justify-end gap-3">
+            <div className="p-6 border-t bg-gray-50 flex justify-end gap-4 rounded-b-3xl">
               <button
                 onClick={() => setSelectedDoctor(null)}
                 className="px-6 py-2.5 bg-gray-200 hover:bg-gray-300 rounded-xl font-medium transition-colors"
               >
                 Close
-              </button>
-              <button className="px-6 py-2.5 bg-teal-600 hover:bg-teal-700 text-white rounded-xl font-medium transition-colors">
-                View Full Profile
               </button>
             </div>
           </div>

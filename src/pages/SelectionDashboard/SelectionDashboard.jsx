@@ -32,7 +32,7 @@ export default function DashboardSelection() {
       icon: <span className="text-5xl">🛡️</span>,
       color: 'from-purple-500 to-indigo-600',
       route: '/validator-dashboard',
-      disabled: false,
+      disabled: true,
     },
     {
       title: 'Admin',
