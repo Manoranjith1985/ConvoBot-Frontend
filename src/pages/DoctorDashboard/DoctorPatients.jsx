@@ -1,10 +1,14 @@
 // src/pages/DoctorPatients.jsx
 import React, { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom'; // ← added
 import axios from 'axios';
 import { Search, User, Calendar, Clock, FileText, AlertCircle } from 'lucide-react';
+import useEscapeKey from '../../hooks/UseEscapeKey';
 
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://127.0.0.1:8000';
 const apiClient = axios.create({ baseURL: API_BASE_URL });
+
+
 
 const formatDateDDMMYYYY = (dateStr) => {
   if (!dateStr) return '—';
@@ -14,11 +18,14 @@ const formatDateDDMMYYYY = (dateStr) => {
 };
 
 const DoctorPatients = () => {
+  const navigate = useNavigate(); // ← added
   const [patients, setPatients] = useState([]);
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedPatient, setSelectedPatient] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
+
+  useEscapeKey(() => setSelectedPatient(null));
 
   // TODO: replace with real auth context
   const currentDoctor = 'Dr. Test OP Doctor';
@@ -98,6 +105,12 @@ const DoctorPatients = () => {
   return (
     <div className="p-6 bg-gray-50 min-h-screen">
       <div className="max-w-7xl mx-auto">
+        <button
+          onClick={() => navigate('/doctor-dashboard')} // ← adjust path if your dashboard route is different
+          className="flex items-center gap-2 text-teal-600 hover:text-teal-800 hover:underline mb-6 font-medium transition-colors"
+        >
+          ← Back to Dashboard
+        </button>
         <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-8 gap-4">
           <h1 className="text-3xl font-bold text-teal-800">My Patients</h1>
           <div className="relative w-full sm:w-80">

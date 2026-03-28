@@ -1,314 +1,299 @@
 // src/components/admin/DoctorFormModal.jsx
-import React, { useState, useEffect } from 'react';
-import { X, Upload, Plus, Trash2 } from 'lucide-react';
+import React, { useState, useEffect, useCallback } from 'react';
+import { X, ArrowLeft, ArrowRight } from 'lucide-react';
+import axios from 'axios';
+
+import PersonalTab from './AdminDoctorTabs/PersonalTab';
+import EducationTab from './AdminDoctorTabs/EducationTab';
+import ExperienceTab from './AdminDoctorTabs/ExperienceTab';
+import WorkTab from './AdminDoctorTabs/WorkTab';
+import useEscapeKey from '../../hooks/UseEscapeKey';
+
+
+const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://127.0.0.1:8000';
+const apiClient = axios.create({ baseURL: API_BASE_URL });
 
 const DoctorFormModal = ({ isOpen, onClose, doctor = null, onSave }) => {
   const isEdit = !!doctor;
 
+  const tabs = [
+    { id: 'personal', label: 'Personal Info' },
+    { id: 'education', label: 'Education' },
+    { id: 'experience', label: 'Experience' },
+    { id: 'work', label: 'Work Configuration' },
+  ];
+
+  const [activeTabIndex, setActiveTabIndex] = useState(0);
+  const activeTabId = tabs[activeTabIndex].id;
+
   const [formData, setFormData] = useState({
-    name: '',
-    specialty: '',
-    avatar: '',
-    experience: '',
-    email: '',
-    phone: '',
-    bio: '',
-    qualifications: [],
-    shiftStart: '',
-    shiftEnd: '',
+    name: '', 
+    specialty: '', 
+    avatar: '', 
+    email: '', 
+    phone: '', 
+    bio: '', 
+    experienceYears: '',
+    qualifications: [], 
+    educationHistory: [], 
+    workHistory: [],
+    currentEmployment: {
+      department: '', 
+      designation: '', 
+      joinDate: '', 
+      slotsPerDay: 20,
+      consultationFee: '', 
+      shiftStart: '', 
+      shiftEnd: ''
+    },
+    experienceDocuments: [], 
+    educationDocuments: []
   });
 
-  const [newQual, setNewQual] = useState('');
+  const [errors, setErrors] = useState({});
   const [avatarPreview, setAvatarPreview] = useState(null);
-  const [file, setFile] = useState(null);
+  const [avatarFile, setAvatarFile] = useState(null);
+  const [tempEduDocs, setTempEduDocs] = useState([]);
+  const [tempExpDocs, setTempExpDocs] = useState([]);
+  const [specialties, setSpecialties] = useState([]);
+  const [loadingSpecialties, setLoadingSpecialties] = useState(false);
+
+  useEscapeKey(onClose);
+
+  const fetchSpecialties = async () => {
+    setLoadingSpecialties(true);
+    try {
+      const res = await apiClient.get('/admin/masters/specialities');
+      setSpecialties(res.data.data || []);
+    } catch (err) {
+      console.error('Failed to load specialties:', err);
+      setSpecialties([]);
+    } finally {
+      setLoadingSpecialties(false);
+    }
+  };
+
+  // Validation
+  const validateCurrentTab = useCallback(() => {
+    const newErrors = {};
+
+    if (activeTabId === 'personal') {
+      if (!formData.name?.trim()) newErrors.name = 'Full name is required';
+      if (!formData.specialty) newErrors.specialty = 'Specialty is required';
+      if (!formData.email?.trim()) newErrors.email = 'Email is required';
+      if (!formData.phone?.trim()) newErrors.phone = 'Phone is required';
+    }
+
+    if (activeTabId === 'education') {
+      if (formData.qualifications.length === 0 && formData.educationHistory.length === 0) {
+        newErrors.education = 'Please add at least one qualification or education entry';
+      }
+    }
+
+    if (activeTabId === 'experience') {
+      if (!formData.experienceYears?.trim()) {
+        newErrors.experienceYears = 'Years of experience is required';
+      }
+    }
+
+    setErrors(newErrors);
+    return Object.keys(newErrors).length === 0;
+  }, [activeTabId, formData]);
 
   useEffect(() => {
-    if (isOpen && doctor) {
-      setFormData({
-        name: doctor.name || '',
-        specialty: doctor.specialty || '',
-        avatar: doctor.avatar || '',
-        experience: doctor.experience || '',
-        email: doctor.email || '',
-        phone: doctor.phone || '',
-        bio: doctor.bio || '',
-        qualifications: doctor.qualifications || [],
-        shiftStart: doctor.shift?.split(' - ')[0] || '',
-        shiftEnd: doctor.shift?.split(' - ')[1] || '',
-      });
-      setAvatarPreview(doctor.avatar || null);
-    } else if (isOpen) {
-      // reset for add new
-      setFormData({
-        name: '', specialty: '', avatar: '', experience: '', email: '', phone: '',
-        bio: '', qualifications: [], shiftStart: '', shiftEnd: '',
-      });
-      setAvatarPreview(null);
-      setFile(null);
+    if (isOpen) {
+      fetchSpecialties();
+      if (doctor) {
+        setFormData({
+          name: doctor.name || '',
+          specialty: doctor.specialty || '',
+          avatar: doctor.avatar || '',
+          email: doctor.email || '',
+          phone: doctor.phone || '',
+          bio: doctor.bio || '',
+          experienceYears: doctor.experienceYears || doctor.experience || '',
+          qualifications: doctor.qualifications || [],
+          educationHistory: doctor.educationHistory || [],
+          workHistory: doctor.workHistory || [],
+          currentEmployment: {
+            department: '', designation: '', joinDate: '', slotsPerDay: 20,
+            consultationFee: '', shiftStart: '', shiftEnd: '',
+            ...doctor.currentEmployment
+          },
+          experienceDocuments: doctor.experienceDocuments || [],
+          educationDocuments: doctor.educationDocuments || []
+        });
+        setAvatarPreview(doctor.avatar || null);
+      } else {
+        setFormData({
+          name: '', specialty: '', avatar: '', email: '', phone: '', bio: '', experienceYears: '',
+          qualifications: [], educationHistory: [], workHistory: [],
+          currentEmployment: {
+            department: '', designation: '', joinDate: '', slotsPerDay: 20,
+            consultationFee: '', shiftStart: '', shiftEnd: ''
+          },
+          experienceDocuments: [], 
+          educationDocuments: []
+        });
+        setAvatarPreview(null);
+        setAvatarFile(null);
+        setTempEduDocs([]);
+        setTempExpDocs([]);
+      }
+      setActiveTabIndex(0);
+      setErrors({});
     }
   }, [isOpen, doctor]);
 
-  if (!isOpen) return null;
-
   const handleChange = (e) => {
     const { name, value } = e.target;
-    setFormData(prev => ({ ...prev, [name]: value }));
-  };
-
-  const handleFileChange = (e) => {
-    const selectedFile = e.target.files[0];
-    if (selectedFile) {
-      setFile(selectedFile);
-      const reader = new FileReader();
-      reader.onloadend = () => setAvatarPreview(reader.result);
-      reader.readAsDataURL(selectedFile);
-    }
-  };
-
-  const convertTo24Hour = (timeStr) => {
-    if (!timeStr) return '';
-    const [time, period] = timeStr.split(' ');
-    let [hours, minutes] = time.split(':').map(Number);
-    if (period?.toUpperCase() === 'PM' && hours !== 12) {
-      hours += 12;
-    }
-    if (period?.toUpperCase() === 'AM' && hours === 12) {
-      hours = 0;
-    }
-    return `${hours.toString().padStart(2, '0')}:${minutes.toString().padStart(2, '0')}`;
-  };
-
-  const addQualification = () => {
-    if (newQual.trim()) {
+    if (name.startsWith('currentEmployment.')) {
+      const field = name.split('.')[1];
       setFormData(prev => ({
         ...prev,
-        qualifications: [...prev.qualifications, newQual.trim()],
+        currentEmployment: { ...prev.currentEmployment, [field]: value }
       }));
-      setNewQual('');
+    } else {
+      setFormData(prev => ({ ...prev, [name]: value }));
+    }
+
+    if (errors[name]) {
+      setErrors(prev => ({ ...prev, [name]: '' }));
     }
   };
 
-  const removeQualification = (index) => {
-    setFormData(prev => ({
-      ...prev,
-      qualifications: prev.qualifications.filter((_, i) => i !== index),
-    }));
+  const goToNextTab = () => {
+    if (validateCurrentTab() && activeTabIndex < tabs.length - 1) {
+      setActiveTabIndex(activeTabIndex + 1);
+      setErrors({});
+    }
   };
 
   const handleSubmit = (e) => {
     e.preventDefault();
-    
+    if (!validateCurrentTab()) return;
+
     const payload = {
       ...formData,
-      shift: `${formData.shiftStart} - ${formData.shiftEnd}`,
-      qualifications: formData.qualifications,
+      avatar: avatarPreview,
+      experienceDocuments: [...formData.experienceDocuments, ...tempExpDocs.map(d => ({ name: d.name, url: d.previewUrl }))],
+      educationDocuments: [...formData.educationDocuments, ...tempEduDocs.map(d => ({ name: d.name, url: d.previewUrl }))]
     };
 
-    // avatar handling note: in real app → upload file separately and get URL
-    // for now we send preview/base64 or existing URL
-    if (file) {
-      payload.avatar = avatarPreview; // base64 – not ideal for prod
-      // Better: upload to backend → get URL back
-    }
-
-    onSave(payload, isEdit ? doctor.id : null);
+    onSave(payload, isEdit ? doctor?.id : null);
     onClose();
   };
 
+  const goToPrevTab = () => {
+    if (activeTabIndex > 0) {
+      setActiveTabIndex(activeTabIndex - 1);
+      setErrors({});
+    }
+  };
+
+  if (!isOpen) return null;
+
   return (
-    <div className="fixed inset-0 bg-black/30 backdrop-blur-sm flex items-center justify-center z-50 p-4">
-      <div className="bg-white rounded-2xl shadow-2xl w-full max-w-2xl max-h-[90vh] overflow-y-auto">
-        <div className="sticky top-0 bg-white p-6 border-b flex justify-between items-center z-10">
-          <h2 className="text-2xl font-bold">
-            {isEdit ? 'Edit Doctor' : 'Add New Doctor'}
+    <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+      <div className="bg-white rounded-3xl shadow-2xl w-full max-w-[800px] max-h-[95vh] overflow-hidden flex flex-col">
+        {/* Header */}
+        <div className="sticky top-0 bg-white px-8 py-6 border-b flex justify-between items-center z-10">
+          <h2 className="text-2xl font-semibold text-gray-900">
+            {isEdit ? 'Edit Doctor Profile' : 'Add New Doctor'}
           </h2>
-          <button onClick={onClose} className="text-gray-500 hover:text-gray-800">
+          <button onClick={onClose} className="text-gray-400 hover:text-gray-600">
             <X size={28} />
           </button>
         </div>
 
-        <form onSubmit={handleSubmit} className="p-6 space-y-6">
-          {/* Avatar */}
-          <div className="flex flex-col items-center">
-            <div className="relative w-32 h-32 rounded-full overflow-hidden bg-gray-100 border-2 border-gray-200">
-              {avatarPreview ? (
-                <img src={avatarPreview} alt="Avatar preview" className="w-full h-full object-cover" />
-              ) : (
-                <div className="w-full h-full flex items-center justify-center text-gray-400">
-                  <Upload size={32} />
-                </div>
-              )}
-            </div>
-            <label className="mt-3 cursor-pointer text-[var(--primary-color)] hover:underline">
-              {file || avatarPreview ? 'Change Photo' : 'Upload Photo'}
-              <input
-                type="file"
-                accept="image/*"
-                className="hidden"
-                onChange={handleFileChange}
+        {/* Tab Navigation */}
+        <div className="flex overflow-x-auto border-b bg-gray-50 px-8">
+          {tabs.map((tab, index) => (
+            <button
+              key={tab.id}
+              onClick={() => setActiveTabIndex(index)}
+              className={`flex-1 whitespace-nowrap py-5 font-medium text-sm transition-all border-b-2 ${
+                activeTabIndex === index
+                  ? 'border-[var(--primary-color)] text-[var(--primary-color)]'
+                  : 'border-transparent text-gray-500 hover:text-gray-700'
+              }`}
+            >
+              {tab.label}
+            </button>
+          ))}
+        </div>
+
+        <form onSubmit={handleSubmit} className="flex-1 overflow-hidden flex flex-col">
+        <div className="flex-1 overflow-y-auto p-6 sm:p-8 w-full box-border">
+            {activeTabId === 'personal' && (
+              <PersonalTab 
+                formData={formData} 
+                handleChange={handleChange} 
+                errors={errors}
+                avatarPreview={avatarPreview}
+                setAvatarPreview={setAvatarPreview}
+                setAvatarFile={setAvatarFile}
+                specialties={specialties}
+                loadingSpecialties={loadingSpecialties}
               />
-            </label>
-            <p className="text-xs text-gray-500 mt-1">or paste URL below</p>
-            <input
-              type="url"
-              name="avatar"
-              value={formData.avatar}
-              onChange={handleChange}
-              placeholder="https://..."
-              className="mt-2 w-full max-w-xs px-3 py-2 border rounded-lg"
-            />
+            )}
+
+            {activeTabId === 'education' && (
+              <EducationTab 
+                formData={formData} 
+                setFormData={setFormData}
+                tempEduDocs={tempEduDocs}
+                setTempEduDocs={setTempEduDocs}
+                errors={errors}
+              />
+            )}
+
+            {activeTabId === 'experience' && (
+              <ExperienceTab 
+                formData={formData} 
+                setFormData={setFormData}
+                handleChange={handleChange} 
+                errors={errors}
+                tempExpDocs={tempExpDocs}
+                setTempExpDocs={setTempExpDocs}
+              />
+            )}
+
+            {activeTabId === 'work' && (
+              <WorkTab 
+                formData={formData} 
+                handleChange={handleChange}
+              />
+            )}
           </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Full Name *</label>
-              <input
-                required
-                type="text"
-                name="name"
-                value={formData.name}
-                onChange={handleChange}
-                className="w-full px-4 py-2 border rounded-lg focus:ring-[var(--primary-color)]"
-              />
-            </div>
-
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Specialty *</label>
-              <input
-                required
-                type="text"
-                name="specialty"
-                value={formData.specialty}
-                onChange={handleChange}
-                placeholder="e.g. Pediatrics, Cardiology"
-                className="w-full px-4 py-2 border rounded-lg"
-              />
-            </div>
-
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Experience</label>
-              <input
-                type="text"
-                name="experience"
-                value={formData.experience}
-                onChange={handleChange}
-                placeholder="e.g. 12 Years"
-                className="w-full px-4 py-2 border rounded-lg"
-              />
-            </div>
-
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Email *</label>
-              <input
-                required
-                type="email"
-                name="email"
-                value={formData.email}
-                onChange={handleChange}
-                className="w-full px-4 py-2 border rounded-lg"
-              />
-            </div>
-
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Phone *</label>
-              <input
-                required
-                type="tel"
-                name="phone"
-                value={formData.phone}
-                onChange={handleChange}
-                placeholder="+91 ..."
-                className="w-full px-4 py-2 border rounded-lg"
-              />
-            </div>
-
-            <div className="md:col-span-2">
-              <label className="block text-sm font-medium text-gray-700 mb-1">Professional Bio</label>
-              <textarea
-                name="bio"
-                value={formData.bio}
-                onChange={handleChange}
-                rows={3}
-                className="w-full px-4 py-2 border rounded-lg"
-                placeholder="Short summary about the doctor..."
-              />
-            </div>
-
-            <div className="md:col-span-2">
-              <label className="block text-sm font-medium text-gray-700 mb-2">Working Hours *</label>
-              <div className="flex gap-4 items-center">
-                <input
-                  required
-                  type="time"
-                  name="shiftStart"
-                  value={convertTo24Hour(formData.shiftStart)}
-                  onChange={handleChange}
-                  className="px-4 py-2 border rounded-lg"
-                />
-                <span>to</span>
-                <input
-                  required
-                  type="time"
-                  name="shiftEnd"
-                  value={convertTo24Hour(formData.shiftEnd)}
-                  onChange={handleChange}
-                  className="px-4 py-2 border rounded-lg"
-                />
-              </div>
-            </div>
-
-            <div className="md:col-span-2">
-              <label className="block text-sm font-medium text-gray-700 mb-2">Qualifications</label>
-              <div className="flex gap-2 mb-2">
-                <input
-                  type="text"
-                  value={newQual}
-                  onChange={(e) => setNewQual(e.target.value)}
-                  placeholder="e.g. MBBS - AIIMS"
-                  className="flex-1 px-4 py-2 border rounded-lg"
-                />
-                <button
-                  type="button"
-                  onClick={addQualification}
-                  className="px-4 py-2 bg-[var(--primary-color)] text-white rounded-lg flex items-center gap-1"
-                >
-                  <Plus size={18} /> Add
-                </button>
-              </div>
-              <div className="flex flex-wrap gap-2">
-                {formData.qualifications.map((qual, idx) => (
-                  <div
-                    key={idx}
-                    className="bg-indigo-50 text-indigo-800 px-3 py-1 rounded-full flex items-center gap-2"
-                  >
-                    {qual}
-                    <button
-                      type="button"
-                      onClick={() => removeQualification(idx)}
-                      className="text-red-500 hover:text-red-700"
-                    >
-                      <Trash2 size={14} />
-                    </button>
-                  </div>
-                ))}
-              </div>
-            </div>
-          </div>
-
-          <div className="flex justify-end gap-4 pt-6 border-t">
+          {/* Navigation Footer */}
+          <div className="border-t p-8 bg-white flex justify-between items-center">
             <button
               type="button"
-              onClick={onClose}
-              className="px-6 py-2.5 bg-gray-200 hover:bg-gray-300 rounded-lg"
+              onClick={goToPrevTab}
+              disabled={activeTabIndex === 0}
+              className="flex items-center gap-2 px-8 py-3.5 border border-gray-300 rounded-2xl disabled:opacity-40 hover:bg-gray-50 transition-colors"
             >
-              Cancel
+              <ArrowLeft size={20} /> Previous
             </button>
-            <button
-              type="submit"
-              className="px-6 py-2.5 bg-[var(--primary-color)] text-white rounded-lg hover:opacity-90"
-            >
-              {isEdit ? 'Save Changes' : 'Add Doctor'}
-            </button>
+
+            {activeTabIndex < tabs.length - 1 ? (
+              <button
+                type="button"
+                onClick={goToNextTab}
+                className="flex items-center gap-2 px-10 py-3.5 bg-[var(--primary-color)] text-white rounded-2xl hover:opacity-90 font-medium disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                Next <ArrowRight size={20} />
+              </button>
+            ) : (
+              <button
+                type="submit"
+                className="px-12 py-3.5 bg-[var(--primary-color)] text-white rounded-2xl hover:opacity-90 font-semibold text-lg"
+              >
+                {isEdit ? 'Update Doctor' : 'Create Doctor'}
+              </button>
+            )}
           </div>
         </form>
       </div>

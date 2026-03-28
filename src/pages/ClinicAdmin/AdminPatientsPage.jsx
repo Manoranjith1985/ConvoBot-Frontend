@@ -4,14 +4,17 @@ import axios from 'axios';
 import { 
   Users, Search, Download, Plus, X, ChevronUp, ChevronDown 
 } from 'lucide-react';
+import { useNavigate } from 'react-router-dom';
 import PatientDetailModal from '../../components/AdminComponents/PatientDetailsModal';
 import PatientForm from '../../components/AdminComponents/PatientFormModal';
+import useEscapeKey from '../../hooks/UseEscapeKey';
 import { debounce } from 'lodash';
 
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://127.0.0.1:8000';
 const apiClient = axios.create({ baseURL: API_BASE_URL });
 
 const AdminPatientsPage = ({ role = 'Clinic Admin', primaryColor = '#0d9488' }) => {
+  const navigate = useNavigate()
   const [patients, setPatients] = useState([]);
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
@@ -21,6 +24,8 @@ const AdminPatientsPage = ({ role = 'Clinic Admin', primaryColor = '#0d9488' }) 
   const [selectedPatient, setSelectedPatient] = useState(null);
   const [patientDetail, setPatientDetail] = useState(null);
   const [detailLoading, setDetailLoading] = useState(false);
+
+  useEscapeKey(() => setSelectedPatient(null));
 
   const [formData, setFormData] = useState({
     patient_name: '',
@@ -120,6 +125,12 @@ const AdminPatientsPage = ({ role = 'Clinic Admin', primaryColor = '#0d9488' }) 
 
   return (
     <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+      <button
+          onClick={() => navigate('/admin-dashboard')} // ← adjust path if your dashboard route is different
+          className="flex items-center gap-2 text-teal-600 hover:text-teal-800 hover:underline mb-6 font-medium transition-colors"
+        >
+          ← Back to Dashboard
+        </button>
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between mb-10 gap-4">
         <div>

@@ -3,14 +3,13 @@
 import { useNavigate } from 'react-router-dom';
 import { useState, useEffect } from 'react';
 import Header from '../../components/Header';
-// Inside your component's return:
 
 export default function DashboardSelection() {
   const navigate = useNavigate();
   const [username, setUsername] = useState('User');  // Default fallback
 
   useEffect(() => {
-    // Fetch username from localStorage (assuming it's set after login, e.g., localStorage.setItem('username', 'Manoranjith'))
+    // Fetch username from localStorage (assuming it's set after login)
     const storedUsername = localStorage.getItem('username');
     if (storedUsername) {
       setUsername(storedUsername);
@@ -24,6 +23,14 @@ export default function DashboardSelection() {
       icon: <span className="text-5xl">🩺</span>,
       color: 'from-blue-500 to-cyan-500',
       route: '/doctor-dashboard',
+      disabled: false,
+    },
+    {
+      title: 'Nurse',
+      description: 'Record vitals, document patient care, assist doctors & manage clinical notes',
+      icon: <span className="text-5xl">👩‍⚕️</span>,
+      color: 'from-teal-500 to-cyan-600',
+      route: '/nurse-dashboard',
       disabled: false,
     },
     {

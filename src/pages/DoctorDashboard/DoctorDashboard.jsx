@@ -112,6 +112,11 @@ const DoctorDashboard = () => {
   return (
     <>
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-10">
+        <div className="bg-white p-6 rounded-xl shadow-md border-l-4 border-blue-500">
+          <p className="text-sm text-gray-500">Appointments</p>
+          <p className="text-3xl font-bold text-blue-600">{metrics.appointments}</p>
+          <Calendar className="w-10 h-10 text-blue-400 opacity-30 float-right -mt-10" />
+        </div>
         <div className="bg-white p-6 rounded-xl shadow-md border-l-4 border-purple-500">
           <p className="text-sm text-gray-500">In Patients</p>
           <p className="text-3xl font-bold text-purple-600">{metrics.inPatients}</p>
@@ -121,11 +126,6 @@ const DoctorDashboard = () => {
           <p className="text-sm text-gray-500">Out Patients</p>
           <p className="text-3xl font-bold text-green-600">{metrics.outPatients}</p>
           <Users className="w-10 h-10 text-green-400 opacity-30 float-right -mt-10" />
-        </div>
-        <div className="bg-white p-6 rounded-xl shadow-md border-l-4 border-blue-500">
-          <p className="text-sm text-gray-500">Appointments</p>
-          <p className="text-3xl font-bold text-blue-600">{metrics.appointments}</p>
-          <Calendar className="w-10 h-10 text-blue-400 opacity-30 float-right -mt-10" />
         </div>
       </div>
 

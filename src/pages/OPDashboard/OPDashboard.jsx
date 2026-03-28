@@ -2,7 +2,7 @@
 import React, { useState, useMemo, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import axios from 'axios';
-import { Calendar, Download, Filter } from 'lucide-react';
+import { Calendar, Download, Filter, Edit2, Trash2 } from 'lucide-react';
 import * as XLSX from 'xlsx';
 import { saveAs } from 'file-saver';
 import './OPDashboard.css';
@@ -19,6 +19,7 @@ const formatDateDDMMYYYY = (dateStr) => {
 
 const OPDashboard = () => {
   const navigate = useNavigate();
+
   const [appointments, setAppointments] = useState([]);
   const [metrics, setMetrics] = useState({
     total_visits: 0,
@@ -27,12 +28,18 @@ const OPDashboard = () => {
     capacity: 0,
     avg_consult_time_min: '—',
   });
+
   const [statusFilter, setStatusFilter] = useState('All');
   const [doctorFilter, setDoctorFilter] = useState('All');
   const [typeFilter, setTypeFilter] = useState('All');
   const [selectedDate, setSelectedDate] = useState(new Date().toISOString().split('T')[0]);
+
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
+
+  // Modal state for Edit
+  const [showEditModal, setShowEditModal] = useState(false);
+  const [editingAppointment, setEditingAppointment] = useState(null);
 
   useEffect(() => {
     const fetchData = async () => {
@@ -57,7 +64,7 @@ const OPDashboard = () => {
   }, [selectedDate]);
 
   const uniqueDoctors = useMemo(() => [...new Set(appointments.map(a => a.provider))], [appointments]);
-  const uniqueTypes   = useMemo(() => [...new Set(appointments.map(a => a.type))],     [appointments]);
+  const uniqueTypes = useMemo(() => [...new Set(appointments.map(a => a.type))], [appointments]);
 
   const filteredAppointments = useMemo(() => {
     let data = [...appointments].sort((a, b) =>
@@ -66,34 +73,67 @@ const OPDashboard = () => {
 
     if (statusFilter !== 'All') data = data.filter(a => a.status === statusFilter);
     if (doctorFilter !== 'All') data = data.filter(a => a.provider === doctorFilter);
-    if (typeFilter   !== 'All') data = data.filter(a => a.type     === typeFilter);
+    if (typeFilter !== 'All') data = data.filter(a => a.type === typeFilter);
 
     return data;
   }, [appointments, statusFilter, doctorFilter, typeFilter]);
 
+  // Edit Appointment
+  const handleEdit = (appt) => {
+    setEditingAppointment({ ...appt });
+    setShowEditModal(true);
+  };
+
+  const saveEdit = async () => {
+    if (!editingAppointment) return;
+
+    try {
+      await apiClient.put(`/op/appointments/${editingAppointment.id || editingAppointment._id}`, editingAppointment);
+      alert('Appointment updated successfully');
+      setShowEditModal(false);
+      setEditingAppointment(null);
+      window.location.reload(); // Refresh to show updated data
+    } catch (err) {
+      alert('Failed to update appointment');
+    }
+  };
+
+  // Delete Appointment
+  const handleDelete = async (appointmentId) => {
+    if (!window.confirm('Are you sure you want to delete this appointment? This action cannot be undone.')) return;
+
+    try {
+      await apiClient.delete(`/op/appointments/${appointmentId}`);
+      alert('Appointment deleted successfully');
+      window.location.reload();
+    } catch (err) {
+      alert('Failed to delete appointment');
+    }
+  };
+
   const exportToExcel = () => {
     const exportData = filteredAppointments.map(appt => ({
-      Date:         formatDateDDMMYYYY(selectedDate),
-      Time:         appt.time || '—',
-      Patient:      appt.patient || '—',
+      Date: formatDateDDMMYYYY(selectedDate),
+      Time: appt.time || '—',
+      Patient: appt.patient || '—',
       'Patient ID': appt.patient_id || '—',
-      Doctor:       appt.provider || '—',
-      Type:         appt.type || '—',
-      Billing:      appt.billing_type || '—',
-      Insurance:    appt.receiver || appt.insurance_provider || '—',
-      Status:       appt.status || '—',
-      Concerns:     appt.concerns || '—',
+      Doctor: appt.provider || '—',
+      Type: appt.type || '—',
+      Billing: appt.billing_type || '—',
+      Insurance: appt.receiver || appt.insurance_provider || '—',
+      Status: appt.status || '—',
+      Concerns: appt.concerns || '—',
     }));
 
     const ws = XLSX.utils.json_to_sheet(exportData);
     const wb = XLSX.utils.book_new();
     XLSX.utils.book_append_sheet(wb, ws, 'Schedule');
     const buffer = XLSX.write(wb, { bookType: 'xlsx', type: 'array' });
-    saveAs(new Blob([buffer]), `Clinic_Schedule_${formatDateDDMMYYYY(selectedDate).replace(/\//g,'-')}.xlsx`);
+    saveAs(new Blob([buffer]), `Clinic_Schedule_${formatDateDDMMYYYY(selectedDate).replace(/\//g, '-')}.xlsx`);
   };
 
   if (loading) return <div className="page-container text-center py-20 text-xl">Loading schedule...</div>;
-  if (error)   return <div className="page-container text-center py-20 text-red-600">{error}</div>;
+  if (error) return <div className="page-container text-center py-20 text-red-600">{error}</div>;
 
   return (
     <div className="page-container">
@@ -121,15 +161,15 @@ const OPDashboard = () => {
         </div>
         <div className="stat-item border-green">
           <span className="stat-label">Confirmed</span>
-          <span className="stat-value" style={{color:'#10b981'}}>{metrics.confirmed}</span>
+          <span className="stat-value" style={{ color: '#10b981' }}>{metrics.confirmed}</span>
         </div>
         <div className="stat-item border-yellow">
           <span className="stat-label">Pending</span>
-          <span className="stat-value" style={{color:'#f59e0b'}}>{metrics.pending}</span>
+          <span className="stat-value" style={{ color: '#f59e0b' }}>{metrics.pending}</span>
         </div>
         <div className="stat-item border-blue">
           <span className="stat-label">Avg Consult Time</span>
-          <span className="stat-value" style={{color:'#6366f1'}}>
+          <span className="stat-value" style={{ color: '#6366f1' }}>
             {metrics.avg_consult_time_min === '—' ? '—' : `${metrics.avg_consult_time_min} min`}
           </span>
         </div>
@@ -172,12 +212,13 @@ const OPDashboard = () => {
               <th>Billing</th>
               <th>Insurance</th>
               <th>Status</th>
+              <th>Actions</th>
             </tr>
           </thead>
           <tbody>
             {filteredAppointments.length === 0 ? (
               <tr>
-                <td colSpan="8" className="text-center py-12 text-gray-500 italic">
+                <td colSpan="9" className="text-center py-12 text-gray-500 italic">
                   No appointments found for the selected date and filters
                 </td>
               </tr>
@@ -198,12 +239,120 @@ const OPDashboard = () => {
                       {appt.status || 'Unknown'}
                     </span>
                   </td>
+                  <td className="flex gap-2">
+                    <button
+                      onClick={() => handleEdit(appt)}
+                      className="p-2 text-amber-600 hover:bg-amber-100 rounded-lg transition-colors"
+                      title="Edit Appointment"
+                    >
+                      <Edit2 size={18} />
+                    </button>
+                    <button
+                      onClick={() => handleDelete(appt.id)}
+                      className="p-2 text-red-600 hover:bg-red-100 rounded-lg transition-colors"
+                      title="Delete Appointment"
+                    >
+                      <Trash2 size={18} />
+                    </button>
+                  </td>
                 </tr>
               ))
             )}
           </tbody>
         </table>
       </div>
+
+      {/* ==================== EDIT APPOINTMENT MODAL WITH VITALS ==================== */}
+      {showEditModal && editingAppointment && (
+        <div className="modal-overlay">
+          <div className="modal-content">
+            <div className="modal-header">
+              <h3>Edit Appointment</h3>
+              <button onClick={() => { setShowEditModal(false); setEditingAppointment(null); }}>×</button>
+            </div>
+
+            <div className="modal-body">
+              <div className="form-group">
+                <label>Time</label>
+                <input
+                  type="time"
+                  value={editingAppointment.time || ''}
+                  onChange={(e) => setEditingAppointment({ ...editingAppointment, time: e.target.value })}
+                />
+              </div>
+
+              <div className="form-group">
+                <label>Status</label>
+                <select
+                  value={editingAppointment.status || ''}
+                  onChange={(e) => setEditingAppointment({ ...editingAppointment, status: e.target.value })}
+                >
+                  <option value="Booked">Booked</option>
+                  <option value="Confirmed">Confirmed</option>
+                  <option value="Pending">Pending</option>
+                  <option value="Completed">Completed</option>
+                  <option value="Cancelled">Cancelled</option>
+                </select>
+              </div>
+
+              <div className="form-group">
+                <label>Concerns / Chief Complaint</label>
+                <input
+                  type="text"
+                  value={editingAppointment.concerns || ''}
+                  onChange={(e) => setEditingAppointment({ ...editingAppointment, concerns: e.target.value })}
+                />
+              </div>
+
+              {/* ==================== VITALS SECTION ==================== */}
+              <div className="form-group">
+                <label className="block font-semibold text-gray-700 mb-3">Vitals</label>
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <label className="text-xs text-gray-500">Height (cm)</label>
+                    <input
+                      type="number"
+                      value={editingAppointment.height || ''}
+                      onChange={(e) => setEditingAppointment({ ...editingAppointment, height: e.target.value })}
+                      placeholder="170"
+                    />
+                  </div>
+                  <div>
+                    <label className="text-xs text-gray-500">Weight (kg)</label>
+                    <input
+                      type="number"
+                      value={editingAppointment.weight || ''}
+                      onChange={(e) => setEditingAppointment({ ...editingAppointment, weight: e.target.value })}
+                      placeholder="65"
+                    />
+                  </div>
+                  <div>
+                    <label className="text-xs text-gray-500">Blood Pressure</label>
+                    <input
+                      type="text"
+                      value={editingAppointment.blood_pressure || ''}
+                      onChange={(e) => setEditingAppointment({ ...editingAppointment, blood_pressure: e.target.value })}
+                      placeholder="120/80"
+                    />
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <div className="modal-actions">
+              <button 
+                className="btn-cancel" 
+                onClick={() => { setShowEditModal(false); setEditingAppointment(null); }}
+              >
+                Cancel
+              </button>
+              <button className="primary-btn" onClick={saveEdit}>
+                Save Changes
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

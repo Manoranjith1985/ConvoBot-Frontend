@@ -5,6 +5,10 @@ import * as XLSX from 'xlsx';
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer } from 'recharts';
 import { Download, AlertTriangle } from 'lucide-react';
 
+
+const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://127.0.0.1:8000';
+const apiClient = axios.create({ baseURL: API_BASE_URL });
+
 const AdminReportsPage = ({ primaryColor = '#0d9488' }) => {
   const [revenueData, setRevenueData] = useState([]);
   const [utilizationData, setUtilizationData] = useState([]);

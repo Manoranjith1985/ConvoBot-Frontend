@@ -5,13 +5,16 @@ import {
   Stethoscope, Clock, Users, Award, Download, Plus, X, Trash2, 
   Edit, Calendar, AlertTriangle, FileText 
 } from 'lucide-react';
+import { useNavigate } from 'react-router-dom'; // ← added
 import DoctorFormModal from '../../components/AdminComponents/DoctorFormModal';
 import ReferPatientModal from '../../components/AdminComponents/ReferPatientModal';
+import useEscapeKey from '../../hooks/UseEscapeKey';
 
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://127.0.0.1:8000';
 const apiClient = axios.create({ baseURL: API_BASE_URL });
 
 const AdminDoctorsPage = ({ role = 'Clinic Admin', primaryColor = '#0d9488' }) => {
+  const navigate = useNavigate()
   const [doctors, setDoctors] = useState([]);
   const [search, setSearch] = useState('');
   const [loading, setLoading] = useState(true);
@@ -21,6 +24,8 @@ const AdminDoctorsPage = ({ role = 'Clinic Admin', primaryColor = '#0d9488' }) =
   const [doctorToEdit, setDoctorToEdit] = useState(null);
   const [deleteConfirmId, setDeleteConfirmId] = useState(null);
   const [showReferModal, setShowReferModal] = useState(false);
+
+  useEscapeKey(() => setSelectedDoctor(null));
 
   useEffect(() => {
     document.documentElement.style.setProperty('--primary-color', primaryColor);
@@ -146,8 +151,15 @@ const AdminDoctorsPage = ({ role = 'Clinic Admin', primaryColor = '#0d9488' }) =
 
   return (
     <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+      <button
+          onClick={() => navigate('/admin-dashboard')} // ← adjust path if your dashboard route is different
+          className="flex items-center gap-2 text-teal-600 hover:text-teal-800 hover:underline mb-6 font-medium transition-colors"
+        >
+          ← Back to Dashboard
+        </button>
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between mb-10 gap-4">
+      
         <div>
           <h1 className="text-3xl sm:text-4xl font-bold text-[var(--primary-color)]">
             Doctors Management

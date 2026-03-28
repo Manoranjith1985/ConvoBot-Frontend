@@ -1,58 +1,68 @@
 // src/pages/DoctorSchedule.jsx
 import React, { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
 import axios from 'axios';
-import { Calendar, Clock, User, Phone, Mail, ChevronRight, X } from 'lucide-react';
+import { Calendar, Clock, ChevronRight } from 'lucide-react';
+import useEscapeKey from '../../hooks/UseEscapeKey';
+import AppointmentDetailModal from '../../components/DoctorComponents/AppointmentDetailModal';
+import DoctorReferPatientModal from '../../components/DoctorComponents/DoctorReferPatientModal';
 
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://127.0.0.1:8000';
 const apiClient = axios.create({ baseURL: API_BASE_URL });
 
+// Helper: Safely convert any MongoDB ID format to clean string
+const toIdString = (id) => {
+  if (!id) return '';
+  if (typeof id === 'string') return id.trim();
+  if (typeof id === 'object') {
+    return id.$oid || 
+           id._id?.$oid || 
+           id.toString?.() || 
+           JSON.stringify(id).replace(/["{}]/g, '').trim();
+  }
+  return String(id).trim();
+};
+
 const DoctorSchedule = () => {
+  const navigate = useNavigate();
   const [appointments, setAppointments] = useState([]);
   const [selectedAppt, setSelectedAppt] = useState(null);
+  const [patientData, setPatientData] = useState(null);
+  const [patientHistory, setPatientHistory] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [patientLoading, setPatientLoading] = useState(false);
+  const [showReferModal, setShowReferModal] = useState(false);
 
-  const provider = 'Dr. Test OP Doctor'; // ← replace with real auth later
+  // Editable Vitals
+  const [editableVitals, setEditableVitals] = useState({
+    height: '',
+    weight: '',
+    blood_pressure: ''
+  });
+  const [savingVitals, setSavingVitals] = useState(false);
 
+  useEscapeKey(() => setSelectedAppt(null));
+
+  const provider = 'Dr. Test OP Doctor';
+
+  // Fetch All Appointments
   useEffect(() => {
     const fetchAppointments = async () => {
       try {
-        const res = await apiClient.get(
-          `/doctor/appointments/history?provider=${encodeURIComponent(provider)}`
-        );
+        const res = await apiClient.get(`/doctor/appointments/history?provider=${encodeURIComponent(provider)}`);
         const appts = res.data?.data || res.data || [];
 
-        // ── Custom sort: latest first ───────────────────────────────
-        // 1. Future appointments (earliest first)
-        // 2. Today
-        // 3. Past appointments (most recent first)
         const now = new Date();
         const todayStr = now.toISOString().split('T')[0];
 
-        const future = [];
-        const today = [];
-        const past = [];
+        const future = appts.filter(a => new Date(`${a.date}T${a.time || '00:00'}`) > now);
+        const today = appts.filter(a => a.date === todayStr);
+        const past = appts.filter(a => a.date < todayStr);
 
-        appts.forEach(appt => {
-          const apptDateTime = new Date(`${appt.date}T${appt.time || '00:00'}`);
-          if (apptDateTime > now) {
-            future.push(appt);
-          } else if (appt.date === todayStr) {
-            today.push(appt);
-          } else {
-            past.push(appt);
-          }
-        });
-
-        // Sort future ascending (earliest first)
         future.sort((a, b) => new Date(`${a.date}T${a.time}`) - new Date(`${b.date}T${b.time}`));
-
-        // Sort past descending (most recent first)
         past.sort((a, b) => new Date(`${b.date}T${b.time}`) - new Date(`${a.date}T${a.time}`));
 
-        // Combine: future → today → past (latest past on top within section)
-        const sorted = [...future, ...today, ...past];
-
-        setAppointments(sorted);
+        setAppointments([...future, ...today, ...past]);
       } catch (err) {
         console.error('Failed to load appointments:', err);
       } finally {
@@ -63,32 +73,138 @@ const DoctorSchedule = () => {
     fetchAppointments();
   }, []);
 
-  const isToday = (dateStr) => {
-    const today = new Date().toISOString().split('T')[0];
-    return dateStr === today;
+  // Load Patient + Vitals when appointment is selected
+  useEffect(() => {
+    if (!selectedAppt) {
+      setEditableVitals({ height: '', weight: '', blood_pressure: '' });
+      setPatientData(null);
+      setPatientHistory([]);
+      return;
+    }
+
+    const patientId = toIdString(selectedAppt.patient_id || selectedAppt._id);
+
+    if (!patientId || patientId.length < 10) {
+      console.warn('Invalid patient ID detected:', selectedAppt.patient_id || selectedAppt._id);
+      return;
+    }
+
+    const fetchPatientDetails = async () => {
+      setPatientLoading(true);
+      try {
+        const [patientRes, historyRes] = await Promise.all([
+          apiClient.get(`doctor/patient/${patientId}`),
+          apiClient.get(`doctor/patient/${patientId}/appointments`)
+        ]);
+
+        const patient = patientRes.data?.data || patientRes.data || null;
+        setPatientData(patient);
+
+        setEditableVitals({
+          height: selectedAppt.height || patient?.height || '',
+          weight: selectedAppt.weight || patient?.weight || '',
+          blood_pressure: selectedAppt.blood_pressure || patient?.blood_pressure || ''
+        });
+
+        setPatientHistory(historyRes.data?.data || []);
+      } catch (err) {
+        console.error("Patient data fetch failed:", err);
+      } finally {
+        setPatientLoading(false);
+      }
+    };
+
+    fetchPatientDetails();
+  }, [selectedAppt]);
+
+  const handleSaveVitals = async () => {
+    if (!selectedAppt) return;
+
+    const apptId = toIdString(selectedAppt._id || selectedAppt.id);
+
+    if (!apptId) {
+      alert('Cannot save vitals — missing appointment ID');
+      return;
+    }
+
+    setSavingVitals(true);
+    try {
+      await apiClient.patch(`/doctor/appointments/${apptId}/vitals`, {
+        height: parseFloat(editableVitals.height) || null,
+        weight: parseFloat(editableVitals.weight) || null,
+        blood_pressure: editableVitals.blood_pressure || null
+      });
+
+      setSelectedAppt(prev => ({
+        ...prev,
+        height: editableVitals.height,
+        weight: editableVitals.weight,
+        blood_pressure: editableVitals.blood_pressure
+      }));
+
+      alert('✅ Vitals saved successfully!');
+    } catch (err) {
+      console.error('Failed to save vitals:', err);
+      alert('❌ Failed to save vitals. Please try again.');
+    } finally {
+      setSavingVitals(false);
+    }
   };
 
-  const isFuture = (dateStr, timeStr = '00:00') => {
-    const apptDateTime = new Date(`${dateStr}T${timeStr}`);
-    return apptDateTime > new Date();
-  };
+  const isToday = (dateStr) => new Date().toISOString().split('T')[0] === dateStr;
+  const isFuture = (dateStr, timeStr = '00:00') => new Date(`${dateStr}T${timeStr}`) > new Date();
 
   const getStatusBadge = (appt) => {
     const status = (appt.status || 'Booked').toLowerCase();
-    if (status === 'cancelled') {
-      return { bg: '#fee2e2', text: '#991b1b', label: 'Cancelled' };
-    }
-    if (isFuture(appt.date, appt.time)) {
-      return { bg: '#dbeafe', text: '#1e40af', label: 'Upcoming' };
-    }
-    if (isToday(appt.date)) {
-      return { bg: '#d1fae5', text: '#065f46', label: 'Today' };
-    }
+    if (status === 'cancelled') return { bg: '#fee2e2', text: '#991b1b', label: 'Cancelled' };
+    if (isFuture(appt.date, appt.time)) return { bg: '#dbeafe', text: '#1e40af', label: 'Upcoming' };
+    if (isToday(appt.date)) return { bg: '#d1fae5', text: '#065f46', label: 'Today' };
     return { bg: '#f3f4f6', text: '#374151', label: 'Past' };
+  };
+
+  const formatDate = (dateStr) => {
+    if (!dateStr) return '—';
+    return new Date(dateStr).toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' });
   };
 
   const openAppointmentDetail = (appt) => setSelectedAppt(appt);
   const closeModal = () => setSelectedAppt(null);
+
+  // Fixed: Start Appointment with clean IDs
+  const handleStartAppointment = () => {
+    if (!selectedAppt) return;
+
+    const apptId = toIdString(selectedAppt._id || selectedAppt.id);
+    const patId = toIdString(selectedAppt.patient_id);
+
+    window.open(
+      `/encounter-documentation?appointment_id=${apptId}&patient_id=${patId}&patient=${encodeURIComponent(selectedAppt.patient_name || 'Unknown Patient')}&date=${selectedAppt.date}&time=${selectedAppt.time}&type=${encodeURIComponent(selectedAppt.visit_type || 'Consultation')}`,
+      'EncounterDoc',
+      'width=1200,height=900,resizable=yes,scrollbars=yes'
+    );
+  };
+
+  // Fixed: Refer Patient - Pass required fields (phone, provider, etc.)
+  const handleReferPatient = () => {
+    if (!selectedAppt) return;
+
+    // Extract clean data for referral
+    const referralData = {
+      appointment_id: toIdString(selectedAppt._id || selectedAppt.id),
+      patient_id: toIdString(selectedAppt.patient_id),
+      patient_name: selectedAppt.patient_name || 'Unknown Patient',
+      phone: selectedAppt.phone || patientData?.phone || patientData?.mobile || '',   // Try multiple sources
+      provider: provider,   // Current doctor
+      referral_from: provider,
+      referral_notes: '',   // Can be enhanced later with modal input
+      date: selectedAppt.date,
+      time: selectedAppt.time,
+      visit_type: selectedAppt.visit_type || 'Consultation'
+    };
+
+    setShowReferModal(true);
+    // You can pass referralData to the modal if needed by lifting state or using context
+  };
 
   if (loading) {
     return (
@@ -101,7 +217,13 @@ const DoctorSchedule = () => {
   return (
     <div className="min-h-screen bg-gray-50 py-8 px-4 sm:px-6 lg:px-8">
       <div className="max-w-7xl mx-auto">
-        {/* Header - matching OPDashboard style */}
+        <button
+          onClick={() => navigate('/doctor-dashboard')}
+          className="flex items-center gap-2 text-teal-600 hover:text-teal-800 hover:underline mb-6 font-medium transition-colors"
+        >
+          ← Back to Dashboard
+        </button>
+
         <div className="mb-8">
           <h1 className="text-3xl font-bold text-teal-700 flex items-center gap-3">
             <Calendar className="w-8 h-8 text-teal-600" />
@@ -115,16 +237,14 @@ const DoctorSchedule = () => {
         {/* Appointment List */}
         <div className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
           {appointments.length === 0 ? (
-            <div className="text-center py-16 text-gray-500">
-              No appointments found
-            </div>
+            <div className="text-center py-16 text-gray-500">No appointments found</div>
           ) : (
             <div className="divide-y divide-gray-100">
               {appointments.map((appt) => {
                 const badge = getStatusBadge(appt);
                 return (
                   <div
-                    key={appt.id || appt._id}
+                    key={appt._id || appt.id}
                     onClick={() => openAppointmentDetail(appt)}
                     className="p-5 flex items-center gap-5 cursor-pointer hover:bg-teal-50/30 transition-colors"
                   >
@@ -153,10 +273,7 @@ const DoctorSchedule = () => {
                     <div className="flex items-center gap-4">
                       <span
                         className="px-3 py-1 rounded-full text-xs font-medium"
-                        style={{
-                          backgroundColor: badge.bg,
-                          color: badge.text,
-                        }}
+                        style={{ backgroundColor: badge.bg, color: badge.text }}
                       >
                         {badge.label}
                       </span>
@@ -169,127 +286,39 @@ const DoctorSchedule = () => {
           )}
         </div>
 
-        {/* Modal */}
-        {selectedAppt && (
-          <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-            <div className="bg-white rounded-xl shadow-2xl max-w-2xl w-full max-h-[90vh] overflow-y-auto">
-              {/* Modal Header */}
-              <div className="p-6 border-b border-gray-200 flex items-center justify-between sticky top-0 bg-white z-10">
-                <h2 className="text-xl font-bold text-teal-700 flex items-center gap-3">
-                  <User className="text-teal-600" />
-                  {selectedAppt.patient_name}
-                </h2>
-                <button
-                  onClick={closeModal}
-                  className="p-2 hover:bg-gray-100 rounded-full transition-colors"
-                >
-                  <X size={20} />
-                </button>
-              </div>
+        {/* Render Modal */}
+        <AppointmentDetailModal
+          selectedAppt={selectedAppt}
+          patientData={patientData}
+          patientHistory={patientHistory}
+          editableVitals={editableVitals}
+          setEditableVitals={setEditableVitals}
+          savingVitals={savingVitals}
+          handleSaveVitals={handleSaveVitals}
+          patientLoading={patientLoading}
+          isToday={isToday}
+          isFuture={isFuture}
+          getStatusBadge={getStatusBadge}
+          formatDate={formatDate}
+          onClose={closeModal}
+          onStartAppointment={handleStartAppointment}
+          onReferPatient={handleReferPatient}
+        />
 
-              {/* Modal Body */}
-              <div className="p-6 space-y-8">
-                {/* Quick Info */}
-                <div className="grid grid-cols-2 sm:grid-cols-4 gap-6 text-sm">
-                  <div>
-                    <p className="text-gray-500">Time</p>
-                    <p className="font-medium text-teal-700">{selectedAppt.time || '—'}</p>
-                  </div>
-                  <div>
-                    <p className="text-gray-500">Date</p>
-                    <p className="font-medium">
-                      {new Date(selectedAppt.date).toLocaleDateString()}
-                    </p>
-                  </div>
-                  <div>
-                    <p className="text-gray-500">Type</p>
-                    <p className="font-medium">{selectedAppt.visit_type || 'Consultation'}</p>
-                  </div>
-                  <div>
-                    <p className="text-gray-500">Status</p>
-                    <span
-                      className="inline-block px-3 py-1 rounded-full text-xs font-medium mt-1"
-                      style={{
-                        backgroundColor: getStatusBadge(selectedAppt).bg,
-                        color: getStatusBadge(selectedAppt).text,
-                      }}
-                    >
-                      {selectedAppt.status || 'Booked'}
-                    </span>
-                  </div>
-                </div>
-
-                {/* Patient Details */}
-                <div className="bg-gray-50 p-5 rounded-xl border border-gray-100">
-                  <h3 className="font-semibold text-teal-700 mb-4 flex items-center gap-2">
-                    <User size={18} /> Patient Information
-                  </h3>
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-6 text-sm">
-                    <div className="flex items-center gap-3">
-                      <Phone size={16} className="text-teal-600" />
-                      <div>
-                        <p className="text-gray-500 text-xs">Phone</p>
-                        <p className="font-medium">{selectedAppt.phone || '—'}</p>
-                      </div>
-                    </div>
-                    <div className="flex items-center gap-3">
-                      <Mail size={16} className="text-teal-600" />
-                      <div>
-                        <p className="text-gray-500 text-xs">Email</p>
-                        <p className="font-medium">{selectedAppt.email || '—'}</p>
-                      </div>
-                    </div>
-                    <div>
-                      <p className="text-gray-500 text-xs">Date of Birth</p>
-                      <p className="font-medium">{selectedAppt.dob || '—'}</p>
-                    </div>
-                  </div>
-                </div>
-
-                {/* Action Buttons */}
-                <div className="flex flex-wrap gap-4">
-                {isFuture(selectedAppt.date, selectedAppt.time) && (
-                  <button
-                    onClick={() => {
-                      const apptId = selectedAppt.id || selectedAppt._id || '';
-                      const width = 1200;
-                      const height = 900;
-                      const left = window.screen.width / 2 - width / 2;
-                      const top = window.screen.height / 2 - height / 2;
-
-                      window.open(
-                        `/encounter-documentation?apptId=${apptId}&patient=${encodeURIComponent(selectedAppt.patient_name)}&date=${selectedAppt.date}&time=${selectedAppt.time}&type=${encodeURIComponent(selectedAppt.visit_type || 'Consultation')}`,
-                        'EncounterDoc',
-                        'width=1200,height=900,resizable=yes,scrollbars=yes'
-                      );
-                    }}
-                    className="flex-1 bg-teal-600 text-white py-3 px-6 rounded-lg font-medium hover:bg-teal-700 transition-colors min-w-[160px]"
-                  >
-                    Start Appointment
-                  </button>
-                )}
-
-                  <button className="flex-1 border border-teal-200 text-teal-700 py-3 px-6 rounded-lg font-medium hover:bg-teal-50 transition-colors min-w-[160px]">
-                    Patient History
-                  </button>
-
-                  {isFuture(selectedAppt.date, selectedAppt.time) ? (
-                    <button className="flex-1 border border-teal-200 text-teal-700 py-3 px-6 rounded-lg font-medium hover:bg-teal-50 transition-colors min-w-[160px]">
-                      Reschedule
-                    </button>
-                  ) : (
-                    <button className="flex-1 bg-orange-50 text-orange-700 border border-orange-200 py-3 px-6 rounded-lg font-medium hover:bg-orange-100 transition-colors min-w-[160px]">
-                      Recall Patient
-                    </button>
-                  )}
-
-                  <button className="flex-1 border border-teal-200 text-teal-700 py-3 px-6 rounded-lg font-medium hover:bg-teal-50 transition-colors min-w-[160px]">
-                    Documents
-                  </button>
-                </div>
-              </div>
-            </div>
-          </div>
+        {/* Refer Modal - Now receives proper data */}
+        {showReferModal && selectedAppt && (
+          <DoctorReferPatientModal
+            isOpen={showReferModal}
+            onClose={() => setShowReferModal(false)}
+            appointment={selectedAppt}
+            patientData={patientData}
+            currentDoctorName={provider}
+            onReferralSuccess={() => {
+              alert('Referral created successfully');
+              setShowReferModal(false);
+              // Optional: refresh appointments list
+            }}
+          />
         )}
       </div>
     </div>

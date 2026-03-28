@@ -9,6 +9,39 @@ import AppointmentForm from '../../components/OPComponents/AppointmentForm';
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://127.0.0.1:8000';
 const apiClient = axios.create({ baseURL: API_BASE_URL });
 
+// Default empty form state — used for reset
+const initialForm = {
+  date: new Date().toISOString().split('T')[0],
+  time: '09:00',
+  patient_name: '',
+  eid: '',
+  file_number: '',
+  phone: '',
+  dob: '',
+  gender: 'Male',
+  address: '',
+  company_name: '',
+  provider: '',
+  visit_type: 'Consultation',
+  billing_type: 'Cash',
+  receiver: '',
+  payer: '',
+  network: '',
+  member_id: '',
+  discount_percent: '0',
+  concerns: '',
+  height: '',
+  weight: '',
+  blood_pressure: '',
+  allergies: '',
+  chronic_conditions: '',
+  patient_id: '',
+  existingDocuments: [],
+  attached_document_ids: [],
+  ai_consent: false,
+
+};
+
 const NewAppointment = () => {
   const navigate = useNavigate();
   const [search, setSearch] = useState('');
@@ -18,115 +51,140 @@ const NewAppointment = () => {
   const [payers, setPayers] = useState([]);
   const [networks, setNetworks] = useState([]);
   const [showForm, setShowForm] = useState(false);
+  const [form, setForm] = useState(initialForm);
 
-  const [form, setForm] = useState({
-    date: new Date().toISOString().split('T')[0],
-    time: '09:00',
-    patient: '',
-    eid: '',
-    fileNumber: '',
-    phone: '',
-    dob: '',
-    gender: 'Male',
-    address: '',
-    companyName: '',
-    provider: '',
-    type: 'Consultation',
-    billing_type: 'Cash',
-    receiver: '',
-    payer: '',
-    network: '',
-    memberId: '',
-    discount_percent: '0',
-    concerns: '',
-    height: '',
-    weight: '',
-    blood_pressure: '',
-    allergies: '',
-    chronic_conditions: '',
-  });
-
-  useEscapeKey(() => {
+  (() => {
     if (showForm) setShowForm(false);
   });
 
   useEffect(() => {
     // Load doctors
     apiClient.get('/op/doctors')
-      .then(res => setDoctors(res.data?.data || []))
-      .catch(console.error);
+      .then(res => {
+        const data = res.data.data || res.data || [];
+        setDoctors(Array.isArray(data) ? data : []);
+      })
+      .catch(err => {
+        console.error('Failed to load doctors:', err);
+        setDoctors([]);
+      });
 
-    // Load masters for dropdowns
+    // Load masters (receivers, payers, networks)
     const masters = [
       { url: '/admin/masters/receiver', setter: setReceivers },
       { url: '/admin/masters/payer', setter: setPayers },
-      { url: '/admin/masters/network', setter: setNetworks }
+      { url: '/admin/masters/network', setter: setNetworks },
     ];
 
     masters.forEach(m => {
       apiClient.get(m.url)
-        .then(res => m.setter(res.data.data || []))
-        .catch(console.error);
+        .then(res => {
+          const data = res.data.data || res.data || [];
+          m.setter(Array.isArray(data) ? data : []);
+        })
+        .catch(err => {
+          console.error(`Failed to load ${m.url}:`, err);
+          m.setter([]);
+        });
     });
   }, []);
+
+  const resetForm = () => {
+    setForm(initialForm);
+    setSearch('');
+    setSearchResults([]);
+  };
 
   const handlePatientSearch = async (e) => {
     const q = e.target.value.trim();
     setSearch(q);
-    setForm(f => ({ ...f, patient: q }));
 
-    if (q.length < 3) {
+    if (q.length < 2) {
       setSearchResults([]);
       return;
     }
 
     try {
-      const res = await apiClient.get(`/admin/dashboard/recent-patients?search=${encodeURIComponent(q)}&limit=10`);
-      setSearchResults(res.data || []);
+      const res = await apiClient.get(`/op/patient_search?query=${encodeURIComponent(q)}`);
+      if (res.data.status === 'success') {
+        setSearchResults(res.data.data || []);
+      } else {
+        setSearchResults([]);
+      }
     } catch (err) {
-      console.error('Patient search error:', err);
+      console.error('Patient search failed:', err);
+      setSearchResults([]);
     }
   };
 
+  const getDisplayName = (p) => p.name || 'Unknown Patient';
+
+  const getSecondaryInfo = (p) => {
+    const parts = [];
+    if (p.phone) parts.push(p.phone);
+    if (p.file_number) parts.push(`File: ${p.file_number}`);
+    if (p.eid) parts.push(`EID: ${p.eid}`);
+    if (p.dob) parts.push(`DOB: ${p.dob}`);
+    return parts.length > 0 ? parts.join(' • ') : 'No additional info';
+  };
+
   const selectPatient = (patient) => {
-    setForm(f => ({
-      ...f,
-      patient: patient.full_name || patient.patient_name || '',
+    const name = patient.name || '';
+
+    setForm({
+      ...initialForm,
+      patient_name: name,
       eid: patient.eid || '',
-      fileNumber: patient.file_number || '',
+      file_number: patient.file_number || '',   // ← will be shown read-only
       phone: patient.phone || '',
       dob: patient.dob || '',
       gender: patient.gender || 'Male',
       address: patient.address || '',
-      companyName: patient.company_name || '',
-      billing_type: patient.billing_type || 'Cash',
-      receiver: patient.receiver || '',
-      payer: patient.payer || '',
-      network: patient.network || '',
-      memberId: patient.member_id || '',
-      discount_percent: patient.discount_percent || '0',
-      height: patient.height || '',
-      weight: patient.weight || '',
-      blood_pressure: patient.blood_pressure || '',
+      company_name: patient.company_name || '',
       allergies: patient.allergies || '',
-      chronic_conditions: patient.chronic_conditions || ''
-    }));
+      chronic_conditions: patient.chronic_conditions || '',
+      patient_id: patient.id || patient._id || '',           // ← important
+      existingDocuments: patient.documents || [],             // ← if endpoint returns documents
+      attached_document_ids: [],
+    });
+
+    setSearch(name);
     setSearchResults([]);
+    setShowForm(true);
+  };
+
+  const handleAddNewPatient = () => {
+    resetForm();
+    setShowForm(true);
   };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
+
+    if (!form.patient_name?.trim()) return alert('Patient name is required');
+    if (!form.phone?.trim()) return alert('Phone number is required');
+    if (!form.provider) return alert('Please select a doctor');
+    if (!form.date) return alert('Appointment date is required');
+    if (!form.time) return alert('Appointment time is required');
+    if (!form.ai_consent) return alert("You must consent to AI-assisted documentation to book this appointment.");
+
     try {
-      const res = await apiClient.post('/admin/appointments', form);
+      const payload = { ...form,
+        attached_document_ids: form.attached_document_ids,
+        ai_consent: form.ai_consent,
+       };
+      
+      const res = await apiClient.post('/op/', payload);
+
       if (res.data.status === 'success') {
-        alert('Appointment created successfully');
+        alert('Appointment created successfully!');
         navigate('/op-dashboard');
       } else {
-        alert('Failed to create appointment');
+        alert(res.data.message || 'Failed to create appointment');
       }
     } catch (err) {
-      console.error(err);
-      alert('Error creating appointment');
+      console.error('Appointment creation error:', err);
+      alert(err.response?.data?.message || 'Error creating appointment. Please check required fields.');
     }
   };
 
@@ -149,31 +207,29 @@ const NewAppointment = () => {
             <input
               value={search}
               onChange={handlePatientSearch}
-              placeholder="Search by name, phone, file number..."
+              placeholder="Search by name, phone, file number, EID..."
               className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:outline-none focus:border-teal-500 focus:ring-2 focus:ring-teal-200"
             />
           </div>
 
           {searchResults.length > 0 && (
-            <div className="bg-gray-50 rounded-xl p-4 max-h-60 overflow-y-auto space-y-2 mb-6">
+            <div className="bg-gray-50 rounded-xl p-4 max-h-64 overflow-y-auto space-y-2 mb-6">
               {searchResults.map((p, i) => (
                 <div
                   key={i}
                   onClick={() => selectPatient(p)}
                   className="p-3 border border-gray-200 rounded-lg hover:bg-teal-50 cursor-pointer transition-colors"
                 >
-                  <p className="font-medium">{p.full_name || p.patient_name}</p>
-                  <p className="text-sm text-gray-600">
-                    {p.phone} • {p.file_number || p.eid || 'No ID'}
-                  </p>
+                  <p className="font-medium">{getDisplayName(p)}</p>
+                  <p className="text-sm text-gray-600">{getSecondaryInfo(p)}</p>
                 </div>
               ))}
             </div>
           )}
 
-          <div className="text-center">
+          <div className="text-center my-6">
             <button
-              onClick={() => setShowForm(true)}
+              onClick={handleAddNewPatient}
               className="flex items-center gap-2 mx-auto px-6 py-3 bg-teal-100 text-teal-700 rounded-xl hover:bg-teal-200 font-medium transition-colors"
             >
               <UserPlus size={20} /> Add New Patient & Book Appointment
@@ -182,7 +238,10 @@ const NewAppointment = () => {
 
           {showForm && (
             <div className="mt-10 border-t pt-8">
-              <h2 className="text-xl font-semibold mb-6">New Patient & Appointment Details</h2>
+              <h2 className="text-xl font-semibold mb-6">
+                {form.patient_name ? 'Update Patient & Appointment' : 'New Patient & Appointment Details'}
+              </h2>
+
               <AppointmentForm
                 form={form}
                 setForm={setForm}
@@ -191,7 +250,10 @@ const NewAppointment = () => {
                 payers={payers}
                 networks={networks}
                 onSubmit={handleSubmit}
-                onCancel={() => setShowForm(false)}
+                onCancel={() => {
+                  setShowForm(false);
+                  resetForm();
+                }}
               />
             </div>
           )}

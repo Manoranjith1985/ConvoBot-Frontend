@@ -142,7 +142,7 @@ const OPPatients = () => {
             />
           </div>
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">EID / Emirates ID</label>
+            <label className="block text-sm font-medium text-gray-700 mb-1">EID</label>
             <input
               type="text"
               value={filters.eid}

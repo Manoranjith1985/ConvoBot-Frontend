@@ -5,7 +5,8 @@ import * as XLSX from 'xlsx';
 import Papa from 'papaparse';
 import { 
   Database, Plus, X, Edit, Trash2, Upload, Download, AlertCircle, Search,
-  Stethoscope, UserCog, Activity, FileText, DollarSign, Building, Network 
+  Stethoscope, UserCog, Activity, FileText, DollarSign, Building, Network,
+  Award   // ← NEW: Icon for Specialties
 } from 'lucide-react';
 
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://127.0.0.1:8000';
@@ -15,6 +16,7 @@ const apiClient = axios.create({ baseURL: API_BASE_URL });
 const MASTER_TYPES = [
   { key: 'providers', label: 'Providers', icon: Stethoscope, description: 'Doctors & medical staff' },
   { key: 'clinicians', label: 'Clinicians', icon: UserCog, description: 'Specialist clinicians' },
+  { key: 'specialities', label: 'Specialities', icon: Award, description: 'Doctor & medical specialties (Cardiology, Dermatology, etc.)' },
   { key: 'cpt', label: 'CPT Services', icon: Activity, description: 'Procedure codes & pricing' },
   { key: 'icd', label: 'ICD Codes', icon: FileText, description: 'Diagnosis codes' },
   { key: 'pricelist', label: 'Pricelists', icon: DollarSign, description: 'Service pricing tiers' },
@@ -143,6 +145,13 @@ const AdminMastersPage = ({ role = 'Clinic Admin', primaryColor = '#0d9488' }) =
     if (t === 'cpt') return [...base, { key: 'price', label: 'Price (₹)', type: 'number' }];
     if (t === 'icd') return [...base, { key: 'category', label: 'Category', type: 'text' }];
     if (t === 'pricelist') return [...base, { key: 'amount', label: 'Amount', type: 'number' }];
+    if (t === 'specialities') {
+      return [
+        { key: 'code', label: 'Specialty Code', type: 'text', required: true },
+        { key: 'description', label: 'Specialty Name', type: 'text', required: true },
+        { key: 'category', label: 'Category (e.g. Surgical, Medical)', type: 'text' },
+      ];
+    }
     return base;
   };
 
@@ -231,6 +240,9 @@ const AdminMastersPage = ({ role = 'Clinic Admin', primaryColor = '#0d9488' }) =
                   {selectedType === 'icd' && (
                     <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Category</th>
                   )}
+                  {selectedType === 'specialities' && (
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Category</th>
+                  )}
                   <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase">Actions</th>
                 </tr>
               </thead>
@@ -243,6 +255,9 @@ const AdminMastersPage = ({ role = 'Clinic Admin', primaryColor = '#0d9488' }) =
                       <td className="px-6 py-4 whitespace-nowrap text-sm">₹{item.price || '0.00'}</td>
                     )}
                     {selectedType === 'icd' && (
+                      <td className="px-6 py-4 whitespace-nowrap text-sm">{item.category || '-'}</td>
+                    )}
+                    {selectedType === 'specialities' && (
                       <td className="px-6 py-4 whitespace-nowrap text-sm">{item.category || '-'}</td>
                     )}
                     <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">

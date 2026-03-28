@@ -1,6 +1,7 @@
 // src/pages/AdminSchedulesPage.jsx
 import React, { useState, useEffect } from 'react';
 import axios from 'axios';
+import { useNavigate } from 'react-router-dom';
 import { 
   Calendar, Clock, Users, Plus, X, Edit, Save 
 } from 'lucide-react';
@@ -11,6 +12,7 @@ const apiClient = axios.create({ baseURL: API_BASE_URL });
 const DAYS = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'];
 
 const AdminSchedulesPage = ({ role = 'Clinic Admin', primaryColor = '#0d9488' }) => {
+  const navigate = useNavigate()
   const [doctors, setDoctors] = useState([]);
   const [selectedDoctor, setSelectedDoctor] = useState(null);
   const [schedules, setSchedules] = useState({});
@@ -129,6 +131,12 @@ const AdminSchedulesPage = ({ role = 'Clinic Admin', primaryColor = '#0d9488' })
 
   return (
     <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 bg-gray-50 min-h-screen">
+      <button
+          onClick={() => navigate('/admin-dashboard')} // ← adjust path if your dashboard route is different
+          className="flex items-center gap-2 text-teal-600 hover:text-teal-800 hover:underline mb-6 font-medium transition-colors"
+        >
+          ← Back to Dashboard
+        </button>
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between mb-8 gap-4">
         <div>
