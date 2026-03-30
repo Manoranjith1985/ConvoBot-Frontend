@@ -31,7 +31,7 @@ export default function DashboardSelection() {
       icon: <span className="text-5xl">👩‍⚕️</span>,
       color: 'from-teal-500 to-cyan-600',
       route: '/nurse-dashboard',
-      disabled: false,
+      disabled: true,
     },
     {
       title: 'Validator',
