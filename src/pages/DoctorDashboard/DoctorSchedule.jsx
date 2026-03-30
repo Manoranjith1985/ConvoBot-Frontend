@@ -1,4 +1,3 @@
-// src/pages/DoctorSchedule.jsx
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import axios from 'axios';
@@ -6,6 +5,7 @@ import { Calendar, Clock, ChevronRight } from 'lucide-react';
 import useEscapeKey from '../../hooks/UseEscapeKey';
 import AppointmentDetailModal from '../../components/DoctorComponents/AppointmentDetailModal';
 import DoctorReferPatientModal from '../../components/DoctorComponents/DoctorReferPatientModal';
+import { useDoctor } from '../../hooks/useDoctor';
 
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://127.0.0.1:8000';
 const apiClient = axios.create({ baseURL: API_BASE_URL });
@@ -15,16 +15,33 @@ const toIdString = (id) => {
   if (!id) return '';
   if (typeof id === 'string') return id.trim();
   if (typeof id === 'object') {
-    return id.$oid || 
-           id._id?.$oid || 
-           id.toString?.() || 
-           JSON.stringify(id).replace(/["{}]/g, '').trim();
+    return id.$oid || id._id?.$oid || id.toString?.() || JSON.stringify(id).replace(/["{}]/g, '').trim();
   }
   return String(id).trim();
 };
 
+// Helper: Format date as DD/MM/YYYY
+const formatDateDDMMYYYY = (dateStr) => {
+  if (!dateStr) return '—';
+  const d = new Date(dateStr);
+  if (isNaN(d.getTime())) return dateStr;
+  return `${d.getDate().toString().padStart(2, '0')}/${(d.getMonth() + 1).toString().padStart(2, '0')}/${d.getFullYear()}`;
+};
+
+const formatDOB = (dob) => {
+  if (!dob) return '—';
+  const str = String(dob).trim();
+  if (/^\d{2}\/\d{2}\/\d{4}$/.test(str)) return str;
+  const date = new Date(dob);
+  if (isNaN(date.getTime())) return str;
+  return `${date.getDate().toString().padStart(2, '0')}/${(date.getMonth() + 1).toString().padStart(2, '0')}/${date.getFullYear()}`;
+};
+
 const DoctorSchedule = () => {
   const navigate = useNavigate();
+  const { doctor } = useDoctor();
+  const provider = doctor?.name || 'Dr. Test OP Doctor';
+
   const [appointments, setAppointments] = useState([]);
   const [selectedAppt, setSelectedAppt] = useState(null);
   const [patientData, setPatientData] = useState(null);
@@ -33,24 +50,35 @@ const DoctorSchedule = () => {
   const [patientLoading, setPatientLoading] = useState(false);
   const [showReferModal, setShowReferModal] = useState(false);
 
-  // Editable Vitals
+  // Editable Vitals (with structured BP support)
   const [editableVitals, setEditableVitals] = useState({
     height: '',
     weight: '',
-    blood_pressure: ''
+    blood_pressure: '',
+    bp_systolic: '',
+    bp_diastolic: '',
   });
   const [savingVitals, setSavingVitals] = useState(false);
 
-  useEscapeKey(() => setSelectedAppt(null));
+  useEscapeKey(() => {
+    if (showReferModal) setShowReferModal(false);
+    else if (selectedAppt) setSelectedAppt(null);
+  });
 
-  const provider = 'Dr. Test OP Doctor';
-
-  // Fetch All Appointments
+  // Fetch Appointments + DEDUPLICATION
   useEffect(() => {
     const fetchAppointments = async () => {
       try {
         const res = await apiClient.get(`/doctor/appointments/history?provider=${encodeURIComponent(provider)}`);
-        const appts = res.data?.data || res.data || [];
+        let appts = res.data?.data || res.data || [];
+
+        // ←←← DEDUPLICATE BY ID (fixes the exact crash you are seeing)
+        const uniqueMap = new Map();
+        appts.forEach(appt => {
+          const id = appt._id || appt.id;
+          if (id && !uniqueMap.has(id)) uniqueMap.set(id, appt);
+        });
+        appts = Array.from(uniqueMap.values());
 
         const now = new Date();
         const todayStr = now.toISOString().split('T')[0];
@@ -71,23 +99,19 @@ const DoctorSchedule = () => {
     };
 
     fetchAppointments();
-  }, []);
+  }, [provider]);
 
-  // Load Patient + Vitals when appointment is selected
+  // Load Patient Details + BP splitting
   useEffect(() => {
     if (!selectedAppt) {
-      setEditableVitals({ height: '', weight: '', blood_pressure: '' });
+      setEditableVitals({ height: '', weight: '', blood_pressure: '', bp_systolic: '', bp_diastolic: '' });
       setPatientData(null);
       setPatientHistory([]);
       return;
     }
 
     const patientId = toIdString(selectedAppt.patient_id || selectedAppt._id);
-
-    if (!patientId || patientId.length < 10) {
-      console.warn('Invalid patient ID detected:', selectedAppt.patient_id || selectedAppt._id);
-      return;
-    }
+    if (!patientId || patientId.length < 10) return;
 
     const fetchPatientDetails = async () => {
       setPatientLoading(true);
@@ -100,10 +124,15 @@ const DoctorSchedule = () => {
         const patient = patientRes.data?.data || patientRes.data || null;
         setPatientData(patient);
 
+        const bp = selectedAppt.blood_pressure || patient?.blood_pressure || '';
+        const [sys, dia] = String(bp).split('/');
+
         setEditableVitals({
           height: selectedAppt.height || patient?.height || '',
           weight: selectedAppt.weight || patient?.weight || '',
-          blood_pressure: selectedAppt.blood_pressure || patient?.blood_pressure || ''
+          blood_pressure: bp,
+          bp_systolic: sys?.trim() || '',
+          bp_diastolic: dia?.trim() || '',
         });
 
         setPatientHistory(historyRes.data?.data || []);
@@ -119,27 +148,22 @@ const DoctorSchedule = () => {
 
   const handleSaveVitals = async () => {
     if (!selectedAppt) return;
-
     const apptId = toIdString(selectedAppt._id || selectedAppt.id);
-
-    if (!apptId) {
-      alert('Cannot save vitals — missing appointment ID');
-      return;
-    }
+    if (!apptId) return alert('Cannot save vitals — missing appointment ID');
 
     setSavingVitals(true);
     try {
       await apiClient.patch(`/doctor/appointments/${apptId}/vitals`, {
         height: parseFloat(editableVitals.height) || null,
         weight: parseFloat(editableVitals.weight) || null,
-        blood_pressure: editableVitals.blood_pressure || null
+        blood_pressure: editableVitals.blood_pressure || null,
       });
 
       setSelectedAppt(prev => ({
         ...prev,
         height: editableVitals.height,
         weight: editableVitals.weight,
-        blood_pressure: editableVitals.blood_pressure
+        blood_pressure: editableVitals.blood_pressure,
       }));
 
       alert('✅ Vitals saved successfully!');
@@ -162,18 +186,11 @@ const DoctorSchedule = () => {
     return { bg: '#f3f4f6', text: '#374151', label: 'Past' };
   };
 
-  const formatDate = (dateStr) => {
-    if (!dateStr) return '—';
-    return new Date(dateStr).toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' });
-  };
-
   const openAppointmentDetail = (appt) => setSelectedAppt(appt);
   const closeModal = () => setSelectedAppt(null);
 
-  // Fixed: Start Appointment with clean IDs
   const handleStartAppointment = () => {
     if (!selectedAppt) return;
-
     const apptId = toIdString(selectedAppt._id || selectedAppt.id);
     const patId = toIdString(selectedAppt.patient_id);
 
@@ -184,26 +201,9 @@ const DoctorSchedule = () => {
     );
   };
 
-  // Fixed: Refer Patient - Pass required fields (phone, provider, etc.)
   const handleReferPatient = () => {
     if (!selectedAppt) return;
-
-    // Extract clean data for referral
-    const referralData = {
-      appointment_id: toIdString(selectedAppt._id || selectedAppt.id),
-      patient_id: toIdString(selectedAppt.patient_id),
-      patient_name: selectedAppt.patient_name || 'Unknown Patient',
-      phone: selectedAppt.phone || patientData?.phone || patientData?.mobile || '',   // Try multiple sources
-      provider: provider,   // Current doctor
-      referral_from: provider,
-      referral_notes: '',   // Can be enhanced later with modal input
-      date: selectedAppt.date,
-      time: selectedAppt.time,
-      visit_type: selectedAppt.visit_type || 'Consultation'
-    };
-
     setShowReferModal(true);
-    // You can pass referralData to the modal if needed by lifting state or using context
   };
 
   if (loading) {
@@ -217,10 +217,7 @@ const DoctorSchedule = () => {
   return (
     <div className="min-h-screen bg-gray-50 py-8 px-4 sm:px-6 lg:px-8">
       <div className="max-w-7xl mx-auto">
-        <button
-          onClick={() => navigate('/doctor-dashboard')}
-          className="flex items-center gap-2 text-teal-600 hover:text-teal-800 hover:underline mb-6 font-medium transition-colors"
-        >
+        <button onClick={() => navigate('/doctor-dashboard')} className="flex items-center gap-2 text-teal-600 hover:text-teal-800 hover:underline mb-6 font-medium transition-colors">
           ← Back to Dashboard
         </button>
 
@@ -229,9 +226,7 @@ const DoctorSchedule = () => {
             <Calendar className="w-8 h-8 text-teal-600" />
             Doctor's Appointment Schedule
           </h1>
-          <p className="mt-2 text-gray-600">
-            View and manage all your past, today’s, and upcoming appointments
-          </p>
+          <p className="mt-2 text-gray-600">View and manage all your past, today’s, and upcoming appointments</p>
         </div>
 
         {/* Appointment List */}
@@ -240,27 +235,23 @@ const DoctorSchedule = () => {
             <div className="text-center py-16 text-gray-500">No appointments found</div>
           ) : (
             <div className="divide-y divide-gray-100">
-              {appointments.map((appt) => {
+              {appointments.map((appt, index) => {
                 const badge = getStatusBadge(appt);
+                const uniqueKey = `${appt._id || appt.id || 'no-id'}-${appt.date || ''}-${appt.time || ''}-${index}`;
                 return (
                   <div
-                    key={appt._id || appt.id}
+                    key={uniqueKey}
                     onClick={() => openAppointmentDetail(appt)}
                     className="p-5 flex items-center gap-5 cursor-pointer hover:bg-teal-50/30 transition-colors"
                   >
+                    {/* rest of your card remains unchanged */}
                     <div className="flex-shrink-0 text-center w-16">
-                      <div className="text-2xl font-bold text-teal-700">
-                        {new Date(appt.date).getDate()}
-                      </div>
-                      <div className="text-xs text-gray-500 uppercase font-medium">
-                        {new Date(appt.date).toLocaleString('default', { month: 'short' })}
-                      </div>
+                      <div className="text-2xl font-bold text-teal-700">{new Date(appt.date).getDate()}</div>
+                      <div className="text-xs text-gray-500 uppercase font-medium">{new Date(appt.date).toLocaleString('default', { month: 'short' })}</div>
                     </div>
 
                     <div className="flex-1 min-w-0">
-                      <div className="font-semibold text-gray-900 truncate text-lg">
-                        {appt.patient_name}
-                      </div>
+                      <div className="font-semibold text-gray-900 truncate text-lg">{appt.patient_name}</div>
                       <div className="mt-1 flex items-center gap-4 text-sm text-gray-600">
                         <span className="flex items-center gap-1.5">
                           <Clock size={14} className="text-teal-600" /> {appt.time || '—'}
@@ -271,12 +262,7 @@ const DoctorSchedule = () => {
                     </div>
 
                     <div className="flex items-center gap-4">
-                      <span
-                        className="px-3 py-1 rounded-full text-xs font-medium"
-                        style={{ backgroundColor: badge.bg, color: badge.text }}
-                      >
-                        {badge.label}
-                      </span>
+                      <span className="px-3 py-1 rounded-full text-xs font-medium" style={{ backgroundColor: badge.bg, color: badge.text }}>{badge.label}</span>
                       <ChevronRight className="text-gray-400" size={20} />
                     </div>
                   </div>
@@ -286,7 +272,6 @@ const DoctorSchedule = () => {
           )}
         </div>
 
-        {/* Render Modal */}
         <AppointmentDetailModal
           selectedAppt={selectedAppt}
           patientData={patientData}
@@ -299,13 +284,13 @@ const DoctorSchedule = () => {
           isToday={isToday}
           isFuture={isFuture}
           getStatusBadge={getStatusBadge}
-          formatDate={formatDate}
+          formatDate={formatDateDDMMYYYY}
+          formatDOB={formatDOB}
           onClose={closeModal}
           onStartAppointment={handleStartAppointment}
           onReferPatient={handleReferPatient}
         />
 
-        {/* Refer Modal - Now receives proper data */}
         {showReferModal && selectedAppt && (
           <DoctorReferPatientModal
             isOpen={showReferModal}
@@ -313,11 +298,7 @@ const DoctorSchedule = () => {
             appointment={selectedAppt}
             patientData={patientData}
             currentDoctorName={provider}
-            onReferralSuccess={() => {
-              alert('Referral created successfully');
-              setShowReferModal(false);
-              // Optional: refresh appointments list
-            }}
+            onReferralSuccess={() => { alert('Referral created successfully'); setShowReferModal(false); }}
           />
         )}
       </div>

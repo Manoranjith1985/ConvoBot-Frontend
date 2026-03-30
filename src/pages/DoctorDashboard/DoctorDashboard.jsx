@@ -2,6 +2,7 @@
 import React, { useState, useEffect } from 'react';
 import axios from 'axios';
 import { Users, Calendar } from 'lucide-react';
+import AcceptReferralModal from '../../components/DoctorComponents/AcceptReferralModal';
 
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://127.0.0.1:8000';
 
@@ -18,6 +19,8 @@ const DoctorDashboard = () => {
   const [nextPatient, setNextPatient] = useState({});
   const [requests, setRequests] = useState([]);
   const [isLoadingNext, setIsLoadingNext] = useState(true);
+  const [showAcceptModal, setShowAcceptModal] = useState(false);
+  const [selectedReferral, setSelectedReferral] = useState(null);
 
   useEffect(() => {
     const fetchDashboardData = async () => {
@@ -30,6 +33,27 @@ const DoctorDashboard = () => {
           apiClient.get(`/doctor/next_patient?provider=${encodeURIComponent(provider)}`),
           apiClient.get(`/doctor/appointment_requests?provider=${encodeURIComponent(provider)}`),
         ]);
+        
+
+        const formatDOB = (dob) => {
+          if (!dob) return 'Not recorded';
+        
+          const str = String(dob).trim();
+        
+          // Already in DD/MM/YYYY? Return as-is
+          if (/^\d{2}\/\d{2}\/\d{4}$/.test(str)) {
+            return str;
+          }
+        
+          const date = new Date(dob);
+          if (isNaN(date.getTime())) {
+            return str; // Return original if unparseable
+          }
+        
+          return `${date.getDate().toString().padStart(2, '0')}/${
+            (date.getMonth() + 1).toString().padStart(2, '0')
+          }/${date.getFullYear()}`;
+        };
 
         console.log('Next patient raw:', nextRes.data);
 
@@ -51,8 +75,13 @@ const DoctorDashboard = () => {
         const formattedNext = {
           name: raw.patient_name || raw.patient || 'N/A',
           address: raw.address || `${raw.billing_type || 'N/A'} • ${raw.visit_type || 'N/A'}`,
-          dob: raw.dob || 'Not recorded',
+          
+          // DOB - Now properly formatted using the same logic as the modal
+          dob: formatDOB(raw.dob || raw.date_of_birth),
+          
+          // Gender - More robust mapping
           sex: raw.sex || raw.gender || 'Not recorded',
+          
           weight: raw.weight ? `${raw.weight} kg` : 'N/A',
           height: raw.height ? `${raw.height} cm` : 'N/A',
           bloodPressure: raw.blood_pressure || 'N/A',
@@ -62,13 +91,15 @@ const DoctorDashboard = () => {
           registerDate: raw.created_at?.$date
             ? new Date(raw.created_at.$date).toLocaleDateString('en-GB')
             : 'N/A',
+          
           conditions: [
             ...(raw.chronic_conditions && raw.chronic_conditions !== 'None' ? [raw.chronic_conditions] : []),
             ...(raw.allergies && raw.allergies !== 'None' ? [`Allergy: ${raw.allergies}`] : []),
             ...(raw.concerns ? [raw.concerns] : []),
           ].filter(Boolean),
+
           phone: raw.phone || raw.mobile || 'Not available',
-          appointmentId: raw.id || '',
+          appointmentId: raw.id || raw._id || '',
           patientId: raw.patient_id?.$oid || raw.patient_id || '',
           date: raw.date || '',
           time: raw.time || '',
@@ -87,15 +118,9 @@ const DoctorDashboard = () => {
     fetchDashboardData();
   }, []);
 
-  const handleAccept = async (appointmentId) => {
-    if (!appointmentId) return alert('Invalid appointment ID');
-    try {
-      await apiClient.post(`/doctor/appointment_requests/accept/${appointmentId}`);
-      alert('Appointment Accepted');
-      window.location.reload();
-    } catch (err) {
-      alert('Failed to accept');
-    }
+  const handleAccept = async (referral) => {
+    setSelectedReferral(referral);
+    setShowAcceptModal(true);
   };
 
   const handleReject = async (appointmentId) => {
@@ -204,12 +229,30 @@ const DoctorDashboard = () => {
               </div>
 
               <div className="grid grid-cols-2 gap-4 text-sm mb-6">
-                <div><p className="text-gray-500">D.O.B</p><p>{nextPatient.dob}</p></div>
-                <div><p className="text-gray-500">Sex</p><p>{nextPatient.sex}</p></div>
-                <div><p className="text-gray-500">Weight</p><p>{nextPatient.weight}</p></div>
-                <div><p className="text-gray-500">Height</p><p>{nextPatient.height}</p></div>
-                <div><p className="text-gray-500">BP</p><p>{nextPatient.bloodPressure}</p></div>
-                <div><p className="text-gray-500">Allergies</p><p>{nextPatient.allergies}</p></div>
+                <div>
+                  <p className="text-gray-500">D.O.B</p>
+                  <p className="font-medium">{nextPatient.dob}</p>
+                </div>
+                <div>
+                  <p className="text-gray-500">Sex</p>
+                  <p className="font-medium">{nextPatient.sex}</p>
+                </div>
+                <div>
+                  <p className="text-gray-500">Weight</p>
+                  <p className="font-medium">{nextPatient.weight}</p>
+                </div>
+                <div>
+                  <p className="text-gray-500">Height</p>
+                  <p className="font-medium">{nextPatient.height}</p>
+                </div>
+                <div>
+                  <p className="text-gray-500">BP</p>
+                  <p className="font-medium">{nextPatient.bloodPressure}</p>
+                </div>
+                <div>
+                  <p className="text-gray-500">Allergies</p>
+                  <p className="font-medium">{nextPatient.allergies}</p>
+                </div>
               </div>
 
               <div className="mt-6">
@@ -291,7 +334,7 @@ const DoctorDashboard = () => {
                 {req.status?.toLowerCase() === 'pending confirmation' || req.status?.toLowerCase() === 'pending' ? (
                   <div className="flex space-x-3">
                     <button
-                      onClick={() => handleAccept(req.id)}
+                      onClick={() => handleAccept(req)}
                       className="px-5 py-2 bg-green-100 text-green-700 rounded hover:bg-green-200 font-medium"
                     >
                       ✓ Accept
@@ -319,6 +362,16 @@ const DoctorDashboard = () => {
           {requests.length === 0 && (
             <p className="text-center text-gray-500 py-8">No pending appointment requests</p>
           )}
+
+          <AcceptReferralModal
+            isOpen={showAcceptModal}
+            onClose={() => setShowAcceptModal(false)}
+            referral={selectedReferral}
+            onSuccess={() => {
+              // Refresh requests
+              window.location.reload(); // or better: refetch requests
+            }}
+          />
         </div>
       </div>
     </>

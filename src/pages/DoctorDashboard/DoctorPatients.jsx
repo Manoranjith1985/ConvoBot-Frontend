@@ -1,14 +1,15 @@
 // src/pages/DoctorPatients.jsx
 import React, { useState, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom'; // ← added
+import { useNavigate } from 'react-router-dom';
 import axios from 'axios';
-import { Search, User, Calendar, Clock, FileText, AlertCircle } from 'lucide-react';
+import { 
+  Search, User, Calendar, Clock, FileText, AlertCircle, 
+  X, Ban, ActivitySquare 
+} from 'lucide-react';
 import useEscapeKey from '../../hooks/UseEscapeKey';
 
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://127.0.0.1:8000';
 const apiClient = axios.create({ baseURL: API_BASE_URL });
-
-
 
 const formatDateDDMMYYYY = (dateStr) => {
   if (!dateStr) return '—';
@@ -18,17 +19,17 @@ const formatDateDDMMYYYY = (dateStr) => {
 };
 
 const DoctorPatients = () => {
-  const navigate = useNavigate(); // ← added
+  const navigate = useNavigate();
   const [patients, setPatients] = useState([]);
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedPatient, setSelectedPatient] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
 
-  useEscapeKey(() => setSelectedPatient(null));
-
-  // TODO: replace with real auth context
+  // TODO: Replace with real auth context later
   const currentDoctor = 'Dr. Test OP Doctor';
+
+  useEscapeKey(() => setSelectedPatient(null));
 
   useEffect(() => {
     const fetchPatients = async () => {
@@ -42,8 +43,8 @@ const DoctorPatients = () => {
         setPatients(data.map(p => ({
           ...p,
           name: p.name || p.patient_name || 'Unknown',
-          firstVisit: p.appointments?.[p.appointments.length - 1]?.date || '—',
-          lastVisit: p.appointments?.[0]?.date || '—'
+          firstVisit: p.firstVisit || p.appointments?.[p.appointments?.length - 1]?.date || '—',
+          lastVisit: p.lastVisit || p.appointments?.[0]?.date || '—'
         })));
       } catch (err) {
         console.error(err);
@@ -70,23 +71,6 @@ const DoctorPatients = () => {
     setSelectedPatient(null);
   };
 
-  const startDocumentation = (patient) => {
-    // Find the most recent/future appointment for this patient
-    const latestAppt = patient.appointments?.[0] || {};
-    const apptId = latestAppt.id || latestAppt._id || '';
-
-    const width = 1200;
-    const height = 900;
-    const left = window.screen.width / 2 - width / 2;
-    const top = window.screen.height / 2 - height / 2;
-
-    window.open(
-      `/encounter-documentation?apptId=${apptId}&patient=${encodeURIComponent(patient.name)}&date=${latestAppt.date || ''}&time=${latestAppt.time || ''}&type=${encodeURIComponent(latestAppt.type || 'Consultation')}`,
-      'EncounterDoc',
-      `width=${width},height=${height},top=${top},left=${left},resizable=yes,scrollbars=yes`
-    );
-  };
-
   if (loading) return (
     <div className="min-h-screen bg-gray-50 flex items-center justify-center">
       <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-teal-600"></div>
@@ -106,11 +90,12 @@ const DoctorPatients = () => {
     <div className="p-6 bg-gray-50 min-h-screen">
       <div className="max-w-7xl mx-auto">
         <button
-          onClick={() => navigate('/doctor-dashboard')} // ← adjust path if your dashboard route is different
+          onClick={() => navigate('/doctor-dashboard')}
           className="flex items-center gap-2 text-teal-600 hover:text-teal-800 hover:underline mb-6 font-medium transition-colors"
         >
           ← Back to Dashboard
         </button>
+
         <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-8 gap-4">
           <h1 className="text-3xl font-bold text-teal-800">My Patients</h1>
           <div className="relative w-full sm:w-80">
@@ -133,7 +118,7 @@ const DoctorPatients = () => {
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
             {filteredPatients.map((patient) => (
               <div
-                key={patient.id || patient.name}
+                key={patient.id || patient._id || patient.name}
                 className="bg-white p-6 rounded-xl shadow-md hover:shadow-lg transition-all border border-gray-100 cursor-pointer"
                 onClick={() => openPatientDetail(patient)}
               >
@@ -149,7 +134,7 @@ const DoctorPatients = () => {
                   </div>
                 </div>
 
-                <div className="grid grid-cols-2 gap-4 text-sm mb-4">
+                <div className="grid grid-cols-2 gap-4 text-sm mb-6">
                   <div>
                     <p className="text-gray-500">First Visit</p>
                     <p className="font-medium">{formatDateDDMMYYYY(patient.firstVisit)}</p>
@@ -169,109 +154,122 @@ const DoctorPatients = () => {
                     </span>
                   </div>
                 </div>
-
-                <button
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    startDocumentation(patient);
-                  }}
-                  className="w-full bg-teal-600 hover:bg-teal-700 text-white py-2.5 rounded-lg font-medium transition-colors"
-                >
-                  Start Documentation
-                </button>
               </div>
             ))}
           </div>
         )}
 
-        {/* Patient Detail Modal */}
+        {/* Patient Detail Modal with Faded Background */}
         {selectedPatient && (
-          <div className="fixed inset-0 bg-black bg-opacity-60 flex items-center justify-center z-50 p-4">
-            <div className="bg-white rounded-xl max-w-4xl w-full max-h-[90vh] overflow-y-auto">
+          <div className="fixed inset-0 bg-black/70 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+            <div className="bg-white rounded-2xl max-w-4xl w-full max-h-[92vh] overflow-y-auto shadow-2xl">
               <div className="p-6 border-b flex justify-between items-center sticky top-0 bg-white z-10">
-                <h2 className="text-2xl font-bold text-teal-800">Patient Details</h2>
+                <h2 className="text-2xl font-bold text-teal-800 flex items-center gap-3">
+                  <User className="text-teal-600" /> Patient Profile
+                </h2>
                 <button 
                   onClick={closeModal}
-                  className="text-gray-500 hover:text-gray-800"
+                  className="text-gray-500 hover:text-gray-800 p-2 rounded-full hover:bg-gray-100 transition-colors"
                 >
                   <X size={24} />
                 </button>
               </div>
 
-              <div className="p-6">
-                <div className="flex items-center gap-6 mb-8">
-                  <div className="w-24 h-24 bg-teal-100 rounded-full flex items-center justify-center text-teal-700 text-3xl font-bold">
+              <div className="p-8">
+                {/* Basic Info */}
+                <div className="flex items-start gap-6 mb-10">
+                  <div className="w-24 h-24 bg-teal-100 rounded-2xl flex items-center justify-center text-teal-700 text-5xl font-bold flex-shrink-0">
                     {selectedPatient.name?.charAt(0) || '?'}
                   </div>
+                  <div className="flex-1 pt-2">
+                    <h2 className="text-3xl font-bold text-gray-900">{selectedPatient.name}</h2>
+                    <div className="flex flex-wrap gap-x-6 gap-y-1 mt-3 text-sm text-gray-600">
+                      {selectedPatient.file_number && <div>File No: <span className="font-medium text-gray-900">{selectedPatient.file_number}</span></div>}
+                      {selectedPatient.eid && <div>EID: <span className="font-medium text-gray-900">{selectedPatient.eid}</span></div>}
+                      {selectedPatient.phone && <div>Phone: <span className="font-medium text-gray-900">{selectedPatient.phone}</span></div>}
+                    </div>
+                  </div>
+                </div>
+
+                {/* Summary Cards */}
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-10">
+                  <div className="bg-gray-50 p-6 rounded-2xl">
+                    <p className="text-gray-500 text-sm">First Visit</p>
+                    <p className="text-2xl font-semibold mt-1">{formatDateDDMMYYYY(selectedPatient.firstVisit)}</p>
+                  </div>
+                  <div className="bg-gray-50 p-6 rounded-2xl">
+                    <p className="text-gray-500 text-sm">Last Visit</p>
+                    <p className="text-2xl font-semibold mt-1">{formatDateDDMMYYYY(selectedPatient.lastVisit)}</p>
+                  </div>
+                  <div className="bg-gray-50 p-6 rounded-2xl">
+                    <p className="text-gray-500 text-sm">Total Visits</p>
+                    <p className="text-2xl font-semibold mt-1">{selectedPatient.appointments?.length || 0}</p>
+                  </div>
+                </div>
+
+                {/* Clinical Info - Most Relevant for Doctor */}
+                <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 mb-10">
                   <div>
-                    <h2 className="text-2xl font-bold">{selectedPatient.name}</h2>
-                    <p className="text-gray-600 mt-1">
-                      {selectedPatient.file_number ? `File: ${selectedPatient.file_number}` : ''}
-                      {selectedPatient.eid ? ` • EID: ${selectedPatient.eid}` : ''}
-                    </p>
+                    <h3 className="font-semibold text-lg mb-4 flex items-center gap-2">
+                      <Ban className="text-red-500" size={20} /> Known Allergies
+                    </h3>
+                    <div className="bg-red-50 border border-red-100 p-5 rounded-2xl text-gray-800 min-h-[110px]">
+                      {selectedPatient.allergies || 'No known allergies recorded'}
+                    </div>
+                  </div>
+
+                  <div>
+                    <h3 className="font-semibold text-lg mb-4 flex items-center gap-2">
+                      <ActivitySquare className="text-amber-600" size={20} /> Chronic Conditions
+                    </h3>
+                    <div className="bg-amber-50 border border-amber-100 p-5 rounded-2xl text-gray-800 min-h-[110px]">
+                      {selectedPatient.chronic_conditions || 'No chronic conditions recorded'}
+                    </div>
                   </div>
                 </div>
 
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
-                  <div className="bg-gray-50 p-5 rounded-lg">
-                    <p className="text-sm text-gray-500">First Visit</p>
-                    <p className="text-lg font-medium">{formatDateDDMMYYYY(selectedPatient.firstVisit)}</p>
-                  </div>
-                  <div className="bg-gray-50 p-5 rounded-lg">
-                    <p className="text-sm text-gray-500">Last Visit</p>
-                    <p className="text-lg font-medium">{formatDateDDMMYYYY(selectedPatient.lastVisit)}</p>
-                  </div>
-                  <div className="bg-gray-50 p-5 rounded-lg">
-                    <p className="text-sm text-gray-500">Total Visits</p>
-                    <p className="text-lg font-medium">{selectedPatient.appointments?.length || 0}</p>
-                  </div>
-                </div>
-
-                <h3 className="text-xl font-semibold mb-4">Appointment History</h3>
+                {/* Appointment History */}
+                <h3 className="text-xl font-semibold mb-4 flex items-center gap-2">
+                  <Calendar className="text-teal-600" size={20} /> Appointment History
+                </h3>
                 {selectedPatient.appointments?.length > 0 ? (
-                  <div className="space-y-4">
+                  <div className="space-y-4 max-h-96 overflow-y-auto pr-2">
                     {selectedPatient.appointments.map((appt, idx) => (
-                      <div key={idx} className="border-l-4 border-teal-500 pl-4 py-3 bg-gray-50 rounded">
+                      <div key={idx} className="border-l-4 border-teal-500 pl-5 py-4 bg-gray-50 rounded-xl">
                         <div className="flex justify-between items-start">
                           <div>
-                            <p className="font-medium">{appt.type || 'Consultation'}</p>
-                            <p className="text-sm text-gray-600">
+                            <p className="font-medium text-gray-900">{appt.type || 'Consultation'}</p>
+                            <p className="text-sm text-gray-600 mt-0.5">
                               {formatDateDDMMYYYY(appt.date)} • {appt.time || '—'}
                             </p>
                           </div>
-                          <span className={`px-3 py-1 text-xs rounded-full ${
+                          <span className={`px-4 py-1 text-xs font-medium rounded-full ${
                             appt.status === 'Completed' ? 'bg-green-100 text-green-700' :
                             appt.status === 'In Progress' ? 'bg-amber-100 text-amber-700' :
                             'bg-blue-100 text-blue-700'
                           }`}>
-                            {appt.status}
+                            {appt.status || 'Booked'}
                           </span>
                         </div>
                         {appt.notes && (
-                          <p className="mt-2 text-sm text-gray-700">{appt.notes}</p>
+                          <p className="mt-4 text-sm text-gray-700 border-t pt-3">{appt.notes}</p>
                         )}
                       </div>
                     ))}
                   </div>
                 ) : (
-                  <p className="text-gray-500 text-center py-8 italic">
-                    No appointment history recorded yet
-                  </p>
+                  <div className="bg-gray-50 border border-gray-200 rounded-2xl p-12 text-center text-gray-500 italic">
+                    No appointment history recorded yet for this patient.
+                  </div>
                 )}
               </div>
 
-              <div className="p-6 border-t bg-gray-50 flex justify-end gap-4">
+              <div className="p-6 border-t bg-gray-50 flex justify-end">
                 <button
                   onClick={closeModal}
-                  className="px-6 py-2.5 bg-gray-200 hover:bg-gray-300 rounded-lg font-medium"
+                  className="px-8 py-3 bg-gray-200 hover:bg-gray-300 rounded-xl font-medium transition-colors"
                 >
                   Close
-                </button>
-                <button
-                  onClick={() => startDocumentation(selectedPatient)}
-                  className="px-6 py-2.5 bg-teal-600 hover:bg-teal-700 text-white rounded-lg font-medium"
-                >
-                  Start Documentation
                 </button>
               </div>
             </div>

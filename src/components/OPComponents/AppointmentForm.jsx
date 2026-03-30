@@ -375,18 +375,51 @@ const AppointmentForm = ({
 
         <div>
           <label className="block text-sm font-medium text-gray-700 mb-1.5">
-            Blood Pressure <span className="text-red-500">*</span>
+            Blood Pressure (mmHg) <span className="text-red-500">*</span>
           </label>
-          <input
-            required
-            type="text"
-            name="blood_pressure"
-            value={form.blood_pressure || ''}
-            onChange={handleChange}
-            placeholder="e.g. 120/80"
-            className="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-teal-500 focus:border-teal-500"
-          />
+          <div className="flex items-center gap-2">
+            <input
+              required
+              type="number"
+              name="bp_systolic"
+              value={form.bp_systolic || ''}
+              onChange={(e) => {
+                const val = e.target.value;
+                setForm((prev) => ({ 
+                  ...prev, 
+                  bp_systolic: val,
+                  blood_pressure: val && form.bp_diastolic ? `${val}/${form.bp_diastolic}` : (val || '')
+                }));
+              }}
+              placeholder="120"
+              min="50"
+              max="250"
+              className="w-24 px-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-teal-500 focus:border-teal-500 text-center font-medium"
+            />
+            <span className="text-2xl font-light text-gray-400">/</span>
+            <input
+              required
+              type="number"
+              name="bp_diastolic"
+              value={form.bp_diastolic || ''}
+              onChange={(e) => {
+                const val = e.target.value;
+                setForm((prev) => ({ 
+                  ...prev, 
+                  bp_diastolic: val,
+                  blood_pressure: form.bp_systolic && val ? `${form.bp_systolic}/${val}` : (val || '')
+                }));
+              }}
+              placeholder="80"
+              min="30"
+              max="150"
+              className="w-24 px-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-teal-500 focus:border-teal-500 text-center font-medium"
+            />
+            <span className="text-sm text-gray-500 ml-3">mmHg</span>
+          </div>
+          <p className="text-xs text-gray-500 mt-1.5">Enter Systolic / Diastolic pressure</p>
         </div>
+
 
         <div className="md:col-span-2">
           <label className="block text-sm font-medium text-gray-700 mb-1.5">Allergies</label>

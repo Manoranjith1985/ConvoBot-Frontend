@@ -1,7 +1,17 @@
 // src/components/admin/tabs/PersonalTab.jsx
 import { User, Upload } from 'lucide-react';
 
-const PersonalTab = ({ formData, handleChange, errors, avatarPreview, setAvatarPreview, setAvatarFile, specialties, loadingSpecialties}) => {
+const PersonalTab = ({ 
+  formData, 
+  handleChange, 
+  errors, 
+  avatarPreview, 
+  setAvatarPreview, 
+  setAvatarFile, 
+  specialties, 
+  loadingSpecialties 
+}) => {
+
   const handleAvatarChange = (e) => {
     const file = e.target.files[0];
     if (file) {
@@ -33,7 +43,13 @@ const PersonalTab = ({ formData, handleChange, errors, avatarPreview, setAvatarP
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
         <div>
           <label className="block text-sm font-medium text-gray-700 mb-1.5">Full Name <span className="text-red-500">*</span></label>
-          <input type="text" name="name" value={formData.name} onChange={handleChange} className={`w-full px-5 py-3.5 border rounded-2xl ${errors.name ? 'border-red-500' : 'border-gray-300'}`} />
+          <input 
+            type="text" 
+            name="name" 
+            value={formData.name} 
+            onChange={handleChange} 
+            className={`w-full px-5 py-3.5 border rounded-2xl ${errors.name ? 'border-red-500' : 'border-gray-300'}`} 
+          />
           {errors.name && <p className="text-red-500 text-sm mt-1">{errors.name}</p>}
         </div>
 
@@ -56,37 +72,53 @@ const PersonalTab = ({ formData, handleChange, errors, avatarPreview, setAvatarP
             
             {!loadingSpecialties && specialties.map((spec, index) => {
               const isString = typeof spec === 'string';
+              const label = isString ? spec : (spec.description || spec.name || spec);
+              const value = isString ? spec : (spec.description || spec.name || spec._id || spec);
               
-              // Change 'spec.title' to whatever key you found!
-              const label = isString ? spec : spec.description; 
-              const val = isString ? spec : spec._id; 
-
               return (
-                <option key={val || index} value={val}>
+                <option key={index} value={value}>
                   {label}
                 </option>
               );
             })}
-
           </select>
           {errors.specialty && <p className="text-red-500 text-sm mt-1">{errors.specialty}</p>}
         </div>
 
         <div>
           <label className="block text-sm font-medium text-gray-700 mb-1.5">Email <span className="text-red-500">*</span></label>
-          <input type="email" name="email" value={formData.email} onChange={handleChange} className={`w-full px-5 py-3.5 border rounded-2xl ${errors.email ? 'border-red-500' : 'border-gray-300'}`} />
+          <input 
+            type="email" 
+            name="email" 
+            value={formData.email} 
+            onChange={handleChange} 
+            className={`w-full px-5 py-3.5 border rounded-2xl ${errors.email ? 'border-red-500' : 'border-gray-300'}`} 
+          />
           {errors.email && <p className="text-red-500 text-sm mt-1">{errors.email}</p>}
         </div>
 
         <div>
           <label className="block text-sm font-medium text-gray-700 mb-1.5">Phone <span className="text-red-500">*</span></label>
-          <input type="tel" name="phone" value={formData.phone} onChange={handleChange} className={`w-full px-5 py-3.5 border rounded-2xl ${errors.phone ? 'border-red-500' : 'border-gray-300'}`} />
+          <input 
+            type="tel" 
+            name="phone" 
+            value={formData.phone} 
+            onChange={handleChange} 
+            className={`w-full px-5 py-3.5 border rounded-2xl ${errors.phone ? 'border-red-500' : 'border-gray-300'}`} 
+          />
           {errors.phone && <p className="text-red-500 text-sm mt-1">{errors.phone}</p>}
         </div>
 
         <div className="md:col-span-2">
           <label className="block text-sm font-medium text-gray-700 mb-1.5">Professional Bio</label>
-          <textarea name="bio" value={formData.bio} onChange={handleChange} rows={5} className="w-full px-5 py-3.5 border border-gray-300 rounded-2xl resize-y" placeholder="Brief professional summary..." />
+          <textarea 
+            name="bio" 
+            value={formData.bio} 
+            onChange={handleChange} 
+            rows={5} 
+            className="w-full px-5 py-3.5 border border-gray-300 rounded-2xl resize-y" 
+            placeholder="Brief professional summary..." 
+          />
         </div>
       </div>
     </div>

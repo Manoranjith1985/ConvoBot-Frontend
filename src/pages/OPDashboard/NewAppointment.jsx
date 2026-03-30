@@ -32,6 +32,8 @@ const initialForm = {
   concerns: '',
   height: '',
   weight: '',
+  bp_systolic: '',
+  bp_diastolic: '',
   blood_pressure: '',
   allergies: '',
   chronic_conditions: '',

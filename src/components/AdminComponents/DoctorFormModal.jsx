@@ -9,7 +9,6 @@ import ExperienceTab from './AdminDoctorTabs/ExperienceTab';
 import WorkTab from './AdminDoctorTabs/WorkTab';
 import useEscapeKey from '../../hooks/UseEscapeKey';
 
-
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://127.0.0.1:8000';
 const apiClient = axios.create({ baseURL: API_BASE_URL });
 
@@ -20,7 +19,7 @@ const DoctorFormModal = ({ isOpen, onClose, doctor = null, onSave }) => {
     { id: 'personal', label: 'Personal Info' },
     { id: 'education', label: 'Education' },
     { id: 'experience', label: 'Experience' },
-    { id: 'work', label: 'Work Configuration' },
+    { id: 'work', label: 'Work Configuration' },   // ← This was causing shrink
   ];
 
   const [activeTabIndex, setActiveTabIndex] = useState(0);
@@ -73,7 +72,6 @@ const DoctorFormModal = ({ isOpen, onClose, doctor = null, onSave }) => {
     }
   };
 
-  // Validation
   const validateCurrentTab = useCallback(() => {
     const newErrors = {};
 
@@ -169,21 +167,6 @@ const DoctorFormModal = ({ isOpen, onClose, doctor = null, onSave }) => {
     }
   };
 
-  const handleSubmit = (e) => {
-    e.preventDefault();
-    if (!validateCurrentTab()) return;
-
-    const payload = {
-      ...formData,
-      avatar: avatarPreview,
-      experienceDocuments: [...formData.experienceDocuments, ...tempExpDocs.map(d => ({ name: d.name, url: d.previewUrl }))],
-      educationDocuments: [...formData.educationDocuments, ...tempEduDocs.map(d => ({ name: d.name, url: d.previewUrl }))]
-    };
-
-    onSave(payload, isEdit ? doctor?.id : null);
-    onClose();
-  };
-
   const goToPrevTab = () => {
     if (activeTabIndex > 0) {
       setActiveTabIndex(activeTabIndex - 1);
@@ -191,11 +174,35 @@ const DoctorFormModal = ({ isOpen, onClose, doctor = null, onSave }) => {
     }
   };
 
+  const handleSubmit = (e) => {
+    e.preventDefault();
+    if (!validateCurrentTab()) return;
+
+    const payload = {
+      name: formData.name,
+      specialty: formData.specialty,
+      email: formData.email,
+      phone: formData.phone,
+      bio: formData.bio,
+      experienceYears: formData.experienceYears,
+      qualifications: formData.qualifications,
+      educationHistory: formData.educationHistory,
+      workHistory: formData.workHistory,
+      currentEmployment: formData.currentEmployment,
+      avatar: avatarPreview,
+      signature: formData.signature,
+      stamp: formData.stamp,
+      seal: formData.seal,
+    };
+
+    onSave(payload, isEdit ? (doctor?._id || doctor?.id) : null);
+  };
+
   if (!isOpen) return null;
 
   return (
     <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4">
-      <div className="bg-white rounded-3xl shadow-2xl w-full max-w-[800px] max-h-[95vh] overflow-hidden flex flex-col">
+      <div className="bg-white rounded-3xl shadow-2xl w-full max-w-[820px] max-h-[95vh] overflow-hidden flex flex-col">
         {/* Header */}
         <div className="sticky top-0 bg-white px-8 py-6 border-b flex justify-between items-center z-10">
           <h2 className="text-2xl font-semibold text-gray-900">
@@ -206,17 +213,17 @@ const DoctorFormModal = ({ isOpen, onClose, doctor = null, onSave }) => {
           </button>
         </div>
 
-        {/* Tab Navigation */}
-        <div className="flex overflow-x-auto border-b bg-gray-50 px-8">
+        {/* Tab Navigation - FIXED: No more shrinking */}
+        <div className="flex border-b bg-gray-50 px-6 overflow-x-auto scrollbar-hide">
           {tabs.map((tab, index) => (
             <button
               key={tab.id}
               onClick={() => setActiveTabIndex(index)}
-              className={`flex-1 whitespace-nowrap py-5 font-medium text-sm transition-all border-b-2 ${
-                activeTabIndex === index
-                  ? 'border-[var(--primary-color)] text-[var(--primary-color)]'
+              className={`flex-1 min-w-[140px] whitespace-nowrap py-5 font-medium text-sm transition-all border-b-2 px-4
+                ${activeTabIndex === index
+                  ? 'border-[var(--primary-color)] text-[var(--primary-color)] font-semibold'
                   : 'border-transparent text-gray-500 hover:text-gray-700'
-              }`}
+                }`}
             >
               {tab.label}
             </button>
@@ -224,7 +231,7 @@ const DoctorFormModal = ({ isOpen, onClose, doctor = null, onSave }) => {
         </div>
 
         <form onSubmit={handleSubmit} className="flex-1 overflow-hidden flex flex-col">
-        <div className="flex-1 overflow-y-auto p-6 sm:p-8 w-full box-border">
+          <div className="flex-1 overflow-y-auto p-6 sm:p-8 w-full box-border">
             {activeTabId === 'personal' && (
               <PersonalTab 
                 formData={formData} 

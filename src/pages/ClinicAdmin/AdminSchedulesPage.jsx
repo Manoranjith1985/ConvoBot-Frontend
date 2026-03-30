@@ -5,6 +5,7 @@ import { useNavigate } from 'react-router-dom';
 import { 
   Calendar, Clock, Users, Plus, X, Edit, Save 
 } from 'lucide-react';
+import useEscapeKey from '../../hooks/UseEscapeKey';
 
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://127.0.0.1:8000';
 const apiClient = axios.create({ baseURL: API_BASE_URL });
@@ -32,6 +33,12 @@ const AdminSchedulesPage = ({ role = 'Clinic Admin', primaryColor = '#0d9488' })
     document.documentElement.style.setProperty('--primary-color', primaryColor);
     fetchDoctorsAndSchedules();
   }, []);
+
+  useEscapeKey(() => {
+    if (showSlotModal) {
+      setShowSlotModal(false);
+    }
+  });
 
   const fetchDoctorsAndSchedules = async () => {
     try {

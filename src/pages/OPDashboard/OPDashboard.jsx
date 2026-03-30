@@ -80,7 +80,12 @@ const OPDashboard = () => {
 
   // Edit Appointment
   const handleEdit = (appt) => {
-    setEditingAppointment({ ...appt });
+    const [sys, dia] = (appt.blood_pressure || '').split('/');
+    setEditingAppointment({ 
+      ...appt,
+      bp_systolic: sys?.trim() || '',
+      bp_diastolic: dia?.trim() || ''
+    });
     setShowEditModal(true);
   };
 
@@ -307,13 +312,16 @@ const OPDashboard = () => {
               {/* ==================== VITALS SECTION ==================== */}
               <div className="form-group">
                 <label className="block font-semibold text-gray-700 mb-3">Vitals</label>
-                <div className="grid grid-cols-2 gap-4">
+                <div className="grid grid-cols-3 gap-4">
                   <div>
                     <label className="text-xs text-gray-500">Height (cm)</label>
                     <input
                       type="number"
                       value={editingAppointment.height || ''}
-                      onChange={(e) => setEditingAppointment({ ...editingAppointment, height: e.target.value })}
+                      onChange={(e) => setEditingAppointment({ 
+                        ...editingAppointment, 
+                        height: e.target.value 
+                      })}
                       placeholder="170"
                     />
                   </div>
@@ -322,18 +330,46 @@ const OPDashboard = () => {
                     <input
                       type="number"
                       value={editingAppointment.weight || ''}
-                      onChange={(e) => setEditingAppointment({ ...editingAppointment, weight: e.target.value })}
+                      onChange={(e) => setEditingAppointment({ 
+                        ...editingAppointment, 
+                        weight: e.target.value 
+                      })}
                       placeholder="65"
                     />
                   </div>
                   <div>
                     <label className="text-xs text-gray-500">Blood Pressure</label>
-                    <input
-                      type="text"
-                      value={editingAppointment.blood_pressure || ''}
-                      onChange={(e) => setEditingAppointment({ ...editingAppointment, blood_pressure: e.target.value })}
-                      placeholder="120/80"
-                    />
+                    <div className="flex items-center gap-1">
+                      <input
+                        type="number"
+                        placeholder="120"
+                        value={editingAppointment.bp_systolic || ''}
+                        onChange={(e) => {
+                          const val = e.target.value;
+                          setEditingAppointment(prev => ({
+                            ...prev,
+                            bp_systolic: val,
+                            blood_pressure: val && prev.bp_diastolic ? `${val}/${prev.bp_diastolic}` : val || ''
+                          }));
+                        }}
+                        className="w-full"
+                      />
+                      <span className="text-xl text-gray-400 mx-1">/</span>
+                      <input
+                        type="number"
+                        placeholder="80"
+                        value={editingAppointment.bp_diastolic || ''}
+                        onChange={(e) => {
+                          const val = e.target.value;
+                          setEditingAppointment(prev => ({
+                            ...prev,
+                            bp_diastolic: val,
+                            blood_pressure: prev.bp_systolic && val ? `${prev.bp_systolic}/${val}` : val || ''
+                          }));
+                        }}
+                        className="w-full"
+                      />
+                    </div>
                   </div>
                 </div>
               </div>

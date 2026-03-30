@@ -5,7 +5,7 @@ import {
   Stethoscope, Clock, Users, Award, Download, Plus, X, Trash2, 
   Edit, Calendar, AlertTriangle, FileText 
 } from 'lucide-react';
-import { useNavigate } from 'react-router-dom'; // ← added
+import { useNavigate } from 'react-router-dom';
 import DoctorFormModal from '../../components/AdminComponents/DoctorFormModal';
 import ReferPatientModal from '../../components/AdminComponents/ReferPatientModal';
 import useEscapeKey from '../../hooks/UseEscapeKey';
@@ -14,7 +14,7 @@ const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://127.0.0.1:8000
 const apiClient = axios.create({ baseURL: API_BASE_URL });
 
 const AdminDoctorsPage = ({ role = 'Clinic Admin', primaryColor = '#0d9488' }) => {
-  const navigate = useNavigate()
+  const navigate = useNavigate();
   const [doctors, setDoctors] = useState([]);
   const [search, setSearch] = useState('');
   const [loading, setLoading] = useState(true);
@@ -56,6 +56,7 @@ const AdminDoctorsPage = ({ role = 'Clinic Admin', primaryColor = '#0d9488' }) =
       const res = await apiClient.get(`/admin/doctors/${doc._id || doc.id}`);
       setSelectedDoctor(res.data.data || res.data);
     } catch (err) {
+      console.error(err);
       setSelectedDoctor(doc); // fallback
     }
   };
@@ -68,16 +69,14 @@ const AdminDoctorsPage = ({ role = 'Clinic Admin', primaryColor = '#0d9488' }) =
   const handleOpenEdit = (doc) => {
     setDoctorToEdit(doc);
     setFormMode('edit');
-    setSelectedDoctor(null); // close detail view if open
+    setSelectedDoctor(null);
   };
 
   const handleFormSave = async (doctorData, doctorId) => {
     try {
       if (doctorId) {
-        // Update
         await apiClient.put(`/admin/doctors/${doctorId}`, doctorData);
       } else {
-        // Create
         await apiClient.post('/admin/doctors', {
           ...doctorData,
           added_by_role: role,
@@ -147,19 +146,17 @@ const AdminDoctorsPage = ({ role = 'Clinic Admin', primaryColor = '#0d9488' }) =
   if (loading) return <div className="text-center py-20 text-xl">Loading doctors...</div>;
   if (error) return <div className="text-center py-20 text-red-600 text-xl">{error}</div>;
 
-  const isSuperAdmin = role === 'Super Admin';
-
   return (
     <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
       <button
-          onClick={() => navigate('/admin-dashboard')} // ← adjust path if your dashboard route is different
-          className="flex items-center gap-2 text-teal-600 hover:text-teal-800 hover:underline mb-6 font-medium transition-colors"
-        >
-          ← Back to Dashboard
-        </button>
+        onClick={() => navigate('/admin-dashboard')}
+        className="flex items-center gap-2 text-teal-600 hover:text-teal-800 hover:underline mb-6 font-medium transition-colors"
+      >
+        ← Back to Dashboard
+      </button>
+
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between mb-10 gap-4">
-      
         <div>
           <h1 className="text-3xl sm:text-4xl font-bold text-[var(--primary-color)]">
             Doctors Management
@@ -193,27 +190,35 @@ const AdminDoctorsPage = ({ role = 'Clinic Admin', primaryColor = '#0d9488' }) =
         />
       </div>
 
-      {/* Doctors Grid */}
+      {/* Doctors Grid - Fixed Avatar Rendering */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
         {filteredDoctors.map(doc => (
           <div
-            key={doc._id || doc.id}
+            key={doc.id}
             onClick={() => handleViewDoctor(doc)}
             className="bg-white rounded-3xl shadow-md p-6 cursor-pointer hover:shadow-xl transition-all border border-transparent hover:border-[var(--primary-color)]/30 group"
           >
             <div className="flex items-center gap-4">
-              <div className="w-16 h-16 rounded-2xl bg-[var(--primary-color)]/10 flex items-center justify-center text-[var(--primary-color)] font-bold text-xl overflow-hidden">
+              <div className="w-16 h-16 rounded-2xl overflow-hidden bg-gray-100 flex-shrink-0">
                 {doc.avatar ? (
-                  <img src={doc.avatar} alt={doc.name} className="w-full h-full object-cover" />
+                  <img 
+                    src={doc.avatar} 
+                    alt={doc.name} 
+                    className="w-full h-full object-cover" 
+                    onError={(e) => { e.target.src = 'https://via.placeholder.com/64?text=Dr'; }}
+                  />
                 ) : (
-                  doc.name?.[0] || '?'
+                  <div className="w-full h-full flex items-center justify-center bg-teal-100 text-teal-700 text-2xl font-bold">
+                    {doc.name?.[0] || '?'}
+                  </div>
                 )}
               </div>
-              <div className="flex-1">
-                <h3 className="font-semibold text-xl group-hover:text-[var(--primary-color)] transition-colors">
+
+              <div className="flex-1 min-w-0">
+                <h3 className="font-semibold text-xl group-hover:text-[var(--primary-color)] transition-colors truncate">
                   {doc.name}
                 </h3>
-                <p className="text-[var(--primary-color)] font-medium">{doc.specialty}</p>
+                <p className="text-[var(--primary-color)] font-medium truncate">{doc.specialty}</p>
                 <div className="flex items-center gap-4 text-sm text-gray-600 mt-1">
                   <span>{doc.experience || '?'} yrs</span>
                   <span>•</span>
@@ -230,7 +235,7 @@ const AdminDoctorsPage = ({ role = 'Clinic Admin', primaryColor = '#0d9488' }) =
         )}
       </div>
 
-      {/* Reusable Doctor Form Modal – Add / Edit */}
+      {/* Doctor Form Modal */}
       <DoctorFormModal
         isOpen={formMode !== null}
         onClose={() => {
@@ -241,20 +246,16 @@ const AdminDoctorsPage = ({ role = 'Clinic Admin', primaryColor = '#0d9488' }) =
         onSave={handleFormSave}
       />
 
+      {/* Doctor Detail Modal */}
       {selectedDoctor && (
         <div
           className="fixed inset-0 bg-black/70 flex items-center justify-center z-50 p-4 overflow-y-auto"
           onClick={() => setSelectedDoctor(null)}
         >
           <div
-            className="
-              bg-white rounded-3xl max-w-3xl w-full mx-4 
-              max-h-[90vh] overflow-y-auto shadow-2xl
-              scrollbar-thin scrollbar-thumb-gray-300 scrollbar-track-gray-100
-            "
+            className="bg-white rounded-3xl max-w-3xl w-full mx-4 max-h-[90vh] overflow-y-auto shadow-2xl"
             onClick={e => e.stopPropagation()}
           >
-            {/* Sticky Header */}
             <div className="sticky top-0 bg-white z-10 p-6 border-b flex justify-between items-center rounded-t-3xl">
               <div>
                 <h2 className="text-2xl sm:text-3xl font-bold text-gray-900">
@@ -264,15 +265,11 @@ const AdminDoctorsPage = ({ role = 'Clinic Admin', primaryColor = '#0d9488' }) =
                   {selectedDoctor.specialty || 'General Physician'}
                 </p>
               </div>
-              <button
-                onClick={() => setSelectedDoctor(null)}
-                className="text-gray-500 hover:text-gray-800 transition-colors"
-              >
+              <button onClick={() => setSelectedDoctor(null)} className="text-gray-500 hover:text-gray-800">
                 <X size={28} />
               </button>
             </div>
 
-            {/* Content */}
             <div className="p-6 space-y-8">
               {/* Avatar & Quick Stats */}
               <div className="flex flex-col sm:flex-row gap-6 items-start sm:items-center">
@@ -282,9 +279,10 @@ const AdminDoctorsPage = ({ role = 'Clinic Admin', primaryColor = '#0d9488' }) =
                       src={selectedDoctor.avatar}
                       alt={selectedDoctor.name}
                       className="w-full h-full object-cover"
+                      onError={(e) => e.target.src = 'https://via.placeholder.com/150?text=Dr'}
                     />
                   ) : (
-                    <div className="w-full h-full flex items-center justify-center text-[var(--primary-color)] text-4xl font-bold">
+                    <div className="w-full h-full flex items-center justify-center text-[var(--primary-color)] text-6xl font-bold">
                       {selectedDoctor.name?.[0] || '?'}
                     </div>
                   )}
@@ -306,12 +304,8 @@ const AdminDoctorsPage = ({ role = 'Clinic Admin', primaryColor = '#0d9488' }) =
                     </div>
                   </div>
 
-                  {selectedDoctor.email && (
-                    <p className="text-gray-700">{selectedDoctor.email}</p>
-                  )}
-                  {selectedDoctor.phone && (
-                    <p className="text-gray-700">{selectedDoctor.phone}</p>
-                  )}
+                  {selectedDoctor.email && <p className="text-gray-700">{selectedDoctor.email}</p>}
+                  {selectedDoctor.phone && <p className="text-gray-700">{selectedDoctor.phone}</p>}
                 </div>
               </div>
 
@@ -321,10 +315,7 @@ const AdminDoctorsPage = ({ role = 'Clinic Admin', primaryColor = '#0d9488' }) =
                   <h3 className="font-semibold text-lg mb-3">Qualifications</h3>
                   <div className="flex flex-wrap gap-2">
                     {selectedDoctor.qualifications.map((q, i) => (
-                      <span
-                        key={i}
-                        className="bg-indigo-50 text-indigo-800 px-3 py-1 rounded-full text-sm"
-                      >
+                      <span key={i} className="bg-indigo-50 text-indigo-800 px-3 py-1 rounded-full text-sm">
                         {q}
                       </span>
                     ))}
@@ -340,15 +331,12 @@ const AdminDoctorsPage = ({ role = 'Clinic Admin', primaryColor = '#0d9488' }) =
                 {selectedDoctor.today_appointments?.length > 0 ? (
                   <div className="space-y-3">
                     {selectedDoctor.today_appointments.map((a, i) => (
-                      <div
-                        key={i}
-                        className="bg-gray-50 p-4 rounded-xl flex flex-col sm:flex-row sm:justify-between sm:items-center gap-3"
-                      >
+                      <div key={i} className="bg-gray-50 p-4 rounded-xl flex flex-col sm:flex-row sm:justify-between sm:items-center gap-3">
                         <div>
                           <div className="font-medium">{a.time}</div>
                           <div className="text-sm text-gray-600">{a.patient_name}</div>
                         </div>
-                        <span className="px-3 py-1 bg-teal-100 text-teal-800 rounded-full text-sm font-medium self-start sm:self-center">
+                        <span className="px-3 py-1 bg-teal-100 text-teal-800 rounded-full text-sm font-medium">
                           {a.visit_type || 'Consultation'}
                         </span>
                       </div>
@@ -363,7 +351,10 @@ const AdminDoctorsPage = ({ role = 'Clinic Admin', primaryColor = '#0d9488' }) =
 
               {/* Actions */}
               <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-                <button className="py-3 bg-blue-600 text-white rounded-xl hover:bg-blue-700 flex items-center justify-center gap-2">
+                <button 
+                  onClick={() => setShowReferModal(true)}
+                  className="py-3 bg-blue-600 text-white rounded-xl hover:bg-blue-700 flex items-center justify-center gap-2"
+                >
                   <Users size={18} /> Refer Patient
                 </button>
                 <button
@@ -379,36 +370,10 @@ const AdminDoctorsPage = ({ role = 'Clinic Admin', primaryColor = '#0d9488' }) =
                   <Trash2 size={18} /> Delete
                 </button>
               </div>
-
-              {/* Reports & Audit */}
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
-                <div>
-                  <h3 className="font-semibold text-lg mb-3 flex items-center gap-2">
-                    <FileText size={18} /> Timestamp Report
-                  </h3>
-                  <button
-                    onClick={downloadReport}
-                    className="w-full py-3 bg-[var(--primary-color)] text-white rounded-xl hover:opacity-90 flex items-center justify-center gap-2"
-                  >
-                    <Download size={18} /> Download Report
-                  </button>
-                </div>
-
-                {role === 'Super Admin' && (
-                  <div>
-                    <h3 className="font-semibold text-lg mb-3 flex items-center gap-2">
-                      <AlertTriangle size={18} className="text-amber-600" /> Audit Trail
-                    </h3>
-                    <button className="w-full py-3 border border-amber-600 text-amber-700 rounded-xl hover:bg-amber-50 flex items-center justify-center gap-2">
-                      <FileText size={16} /> View Audit Trail
-                    </button>
-                  </div>
-                )}
-              </div>
             </div>
           </div>
         </div>
-)}
+      )}
 
       {/* Delete Confirmation */}
       {deleteConfirmId && (
@@ -436,15 +401,13 @@ const AdminDoctorsPage = ({ role = 'Clinic Admin', primaryColor = '#0d9488' }) =
         </div>
       )}
 
+      {/* Refer Patient Modal */}
       {selectedDoctor && showReferModal && (
         <ReferPatientModal
           isOpen={showReferModal}
           onClose={() => setShowReferModal(false)}
           targetDoctor={selectedDoctor}
-          onReferralCreated={() => {
-            // Optional: refresh today's schedule or show success toast
-            fetchDoctors(); // or better: refetch selected doctor
-          }}
+          onReferralCreated={() => fetchDoctors()}
         />
       )}
     </div>

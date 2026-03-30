@@ -4,9 +4,9 @@ import axios from 'axios';
 import * as XLSX from 'xlsx';
 import Papa from 'papaparse';
 import { 
-  Database, Plus, X, Edit, Trash2, Upload, Download, AlertCircle, Search,
+  Database, Plus, X, Trash2, Upload, Download, AlertCircle, Search,
   Stethoscope, UserCog, Activity, FileText, DollarSign, Building, Network,
-  Award   // ← NEW: Icon for Specialties
+  Award
 } from 'lucide-react';
 
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://127.0.0.1:8000';
@@ -16,7 +16,7 @@ const apiClient = axios.create({ baseURL: API_BASE_URL });
 const MASTER_TYPES = [
   { key: 'providers', label: 'Providers', icon: Stethoscope, description: 'Doctors & medical staff' },
   { key: 'clinicians', label: 'Clinicians', icon: UserCog, description: 'Specialist clinicians' },
-  { key: 'specialities', label: 'Specialities', icon: Award, description: 'Doctor & medical specialties (Cardiology, Dermatology, etc.)' },
+  { key: 'specialities', label: 'Specialities', icon: Award, description: 'Doctor & medical specialties' },
   { key: 'cpt', label: 'CPT Services', icon: Activity, description: 'Procedure codes & pricing' },
   { key: 'icd', label: 'ICD Codes', icon: FileText, description: 'Diagnosis codes' },
   { key: 'pricelist', label: 'Pricelists', icon: DollarSign, description: 'Service pricing tiers' },
@@ -26,13 +26,12 @@ const MASTER_TYPES = [
 ];
 
 const AdminMastersPage = ({ role = 'Clinic Admin', primaryColor = '#0d9488' }) => {
-  const [selectedType, setSelectedType] = useState('providers'); // default
+  const [selectedType, setSelectedType] = useState('providers');
   const [items, setItems] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [searchTerm, setSearchTerm] = useState('');
-  const [showModal, setShowModal] = useState(false);
-  const [editItem, setEditItem] = useState(null);
+  const [showAddModal, setShowAddModal] = useState(false);
   const [formData, setFormData] = useState({});
   const [deleteConfirm, setDeleteConfirm] = useState(null);
 
@@ -55,14 +54,13 @@ const AdminMastersPage = ({ role = 'Clinic Admin', primaryColor = '#0d9488' }) =
     }
   };
 
-  // Open modal for add or edit
-  const openModal = (item = null) => {
-    setEditItem(item);
-    setFormData(item ? { ...item } : {});
-    setShowModal(true);
+  // Open Add modal only (no edit)
+  const openAddModal = () => {
+    setFormData({});
+    setShowAddModal(true);
   };
 
-  // Save (add or update)
+  // Save new item only
   const handleSave = async () => {
     if (!formData.code?.trim()) {
       alert('Code is required');
@@ -71,15 +69,12 @@ const AdminMastersPage = ({ role = 'Clinic Admin', primaryColor = '#0d9488' }) =
 
     try {
       const endpoint = `/admin/masters/${selectedType}`;
-      if (editItem) {
-        await apiClient.put(`${endpoint}/${editItem._id}`, formData);
-      } else {
-        await apiClient.post(endpoint, formData);
-      }
-      setShowModal(false);
+      await apiClient.post(endpoint, formData);
+      setShowAddModal(false);
       fetchItems(selectedType);
+      setFormData({});
     } catch (err) {
-      alert(err.response?.data?.message || 'Failed to save');
+      alert(err.response?.data?.message || 'Failed to save item');
     }
   };
 
@@ -95,7 +90,7 @@ const AdminMastersPage = ({ role = 'Clinic Admin', primaryColor = '#0d9488' }) =
       setDeleteConfirm(null);
       fetchItems(selectedType);
     } catch (err) {
-      alert('Failed to delete');
+      alert('Failed to delete item');
     }
   };
 
@@ -116,10 +111,10 @@ const AdminMastersPage = ({ role = 'Clinic Admin', primaryColor = '#0d9488' }) =
               count++;
             }
           }
-          alert(`Imported ${count} items`);
+          alert(`Successfully imported ${count} items`);
           fetchItems(selectedType);
         } catch (err) {
-          alert('Import failed');
+          alert('Import failed. Please check the file format.');
         }
       }
     });
@@ -127,14 +122,14 @@ const AdminMastersPage = ({ role = 'Clinic Admin', primaryColor = '#0d9488' }) =
 
   // Export XLSX
   const handleExport = () => {
-    if (items.length === 0) return alert('No data');
+    if (items.length === 0) return alert('No data to export');
     const ws = XLSX.utils.json_to_sheet(items);
     const wb = XLSX.utils.book_new();
     XLSX.utils.book_append_sheet(wb, ws, selectedType.toUpperCase());
-    XLSX.writeFile(wb, `${selectedType}_export.xlsx`);
+    XLSX.writeFile(wb, `${selectedType}_masters_export.xlsx`);
   };
 
-  // Dynamic form fields
+  // Dynamic form fields (Add only)
   const getFormFields = () => {
     const base = [
       { key: 'code', label: 'Code', type: 'text', required: true },
@@ -181,7 +176,7 @@ const AdminMastersPage = ({ role = 'Clinic Admin', primaryColor = '#0d9488' }) =
             <Download size={18} /> Export XLSX
           </button>
           <button
-            onClick={() => openModal()}
+            onClick={openAddModal}
             className="flex items-center gap-2 bg-[var(--primary-color)] text-white px-6 py-2.5 rounded-xl hover:opacity-90 font-medium"
           >
             <Plus size={18} /> Add New Item
@@ -262,15 +257,10 @@ const AdminMastersPage = ({ role = 'Clinic Admin', primaryColor = '#0d9488' }) =
                     )}
                     <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
                       <button
-                        onClick={() => openModal(item)}
-                        className="text-indigo-600 hover:text-indigo-900 mr-4"
-                      >
-                        Edit
-                      </button>
-                      <button
                         onClick={() => confirmDelete(item._id)}
-                        className="text-red-600 hover:text-red-900"
+                        className="text-red-600 hover:text-red-900 flex items-center gap-1"
                       >
+                        <Trash2 size={16} />
                         Delete
                       </button>
                     </td>
@@ -282,15 +272,15 @@ const AdminMastersPage = ({ role = 'Clinic Admin', primaryColor = '#0d9488' }) =
         )}
       </div>
 
-      {/* Add/Edit Modal */}
-      {showModal && (
+      {/* Add New Item Modal (No Edit) */}
+      {showAddModal && (
         <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-4">
           <div className="bg-white rounded-2xl max-w-lg w-full p-6 max-h-[90vh] overflow-y-auto shadow-2xl">
             <div className="flex justify-between items-center mb-6 sticky top-0 bg-white z-10">
               <h2 className="text-2xl font-bold text-gray-900">
-                {editItem ? 'Edit' : 'Add New'} {selectedType.toUpperCase()} Item
+                Add New {selectedType.toUpperCase()} Item
               </h2>
-              <button onClick={() => setShowModal(false)}>
+              <button onClick={() => setShowAddModal(false)}>
                 <X size={28} className="text-gray-500 hover:text-gray-800" />
               </button>
             </div>
@@ -325,7 +315,7 @@ const AdminMastersPage = ({ role = 'Clinic Admin', primaryColor = '#0d9488' }) =
               <div className="flex justify-end gap-4 pt-6 border-t">
                 <button
                   type="button"
-                  onClick={() => setShowModal(false)}
+                  onClick={() => setShowAddModal(false)}
                   className="px-6 py-2.5 border border-gray-300 rounded-xl hover:bg-gray-50 font-medium"
                 >
                   Cancel
@@ -334,7 +324,7 @@ const AdminMastersPage = ({ role = 'Clinic Admin', primaryColor = '#0d9488' }) =
                   onClick={handleSave}
                   className="px-6 py-2.5 bg-[var(--primary-color)] text-white rounded-xl hover:opacity-90 font-medium"
                 >
-                  {editItem ? 'Update Item' : 'Save Item'}
+                  Save Item
                 </button>
               </div>
             </div>
