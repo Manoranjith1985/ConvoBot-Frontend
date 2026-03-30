@@ -373,6 +373,40 @@ const EncounterDocumentation = () => {
 
   const handleTimerStop = (seconds) => setConsultationDuration(seconds);
 
+  // Add this function inside EncounterDocumentation component
+  const handleDownloadGeneratedReport = async () => {
+    if (!generatedReport?.report_id) {
+      alert('No report available to download.');
+      return;
+    }
+  
+    const baseURL = import.meta.env.VITE_API_BASE_URL || 'http://127.0.0.1:5000';
+    const downloadUrl = `${baseURL}/doctor/download-report/${generatedReport.report_id}`;
+  
+    try {
+      const response = await fetch(downloadUrl, { method: 'GET' });
+  
+      if (!response.ok) throw new Error(`HTTP ${response.status}`);
+  
+      const blob = await response.blob();
+      const url = window.URL.createObjectURL(blob);
+  
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = generatedReport.filename || `report_${generatedReport.report_id.slice(0, 8)}.pdf`;
+      document.body.appendChild(a);
+      a.click();
+  
+      setTimeout(() => {
+        document.body.removeChild(a);
+        window.URL.revokeObjectURL(url);
+      }, 150);
+    } catch (err) {
+      console.error('Report download error:', err);
+      alert('Failed to download the report. Please try again.');
+    }
+  };
+
   const handleSaveVitals = async () => {
     if (!appointmentId) return alert('No appointment ID');
     setSavingVitals(true);
@@ -685,15 +719,16 @@ const EncounterDocumentation = () => {
             <h3 className="text-lg font-semibold text-emerald-800 mb-4 flex items-center gap-2">
               <FileText size={20} /> Report Generated on Clinic Letterhead
             </h3>
-            <p className="text-sm text-emerald-700 mb-4">International standard medical report rendered on official clinic letterhead.</p>
-            <a 
-              href={`${API_BASE_URL}/doctor/download-report/${generatedReport.report_id}`}
-              target="_blank"
-              rel="noopener noreferrer"
+            <p className="text-sm text-emerald-700 mb-4">
+              International standard medical report rendered on official clinic letterhead.
+            </p>
+            
+            <button
+              onClick={handleDownloadGeneratedReport}
               className="inline-flex items-center gap-2 px-6 py-3 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl font-medium transition-colors"
             >
               <Download size={18} /> Download Final PDF Report
-            </a>
+            </button>
           </div>
         )}
 

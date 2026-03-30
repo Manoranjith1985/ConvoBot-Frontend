@@ -1,8 +1,11 @@
+// src/components/admin/AppointmentDetailModal.jsx
 import React, { useEffect, useState } from 'react';
 import axios from 'axios';
-import { X, User, Activity, Ruler, Weight, Calculator, HeartPulse, 
-         AlertTriangle, Stethoscope, Ban, ActivitySquare, History, Loader2, 
-         ArrowRightLeft, FileEdit, AlertCircle, Edit3, FileText, Download } from 'lucide-react';
+import { 
+  X, User, Activity, Ruler, Weight, Calculator, HeartPulse, 
+  AlertTriangle, Stethoscope, Ban, ActivitySquare, History, Loader2, 
+  ArrowRightLeft, FileEdit, AlertCircle, Edit3, FileText, Download 
+} from 'lucide-react';
 import DoctorReferPatientModal from './DoctorReferPatientModal';
 
 const apiClient = axios.create({
@@ -31,10 +34,15 @@ const AppointmentDetailModal = ({
 
   const [isEditingVitals, setIsEditingVitals] = useState(false);
   const [showReferModal, setShowReferModal] = useState(false);
+
+  // Documents state
+  const [encounterDoc, setEncounterDoc] = useState(null);   // SOAP JSON
+  const [reportMeta, setReportMeta] = useState(null);       // PDF report metadata
+  const [loadingDocuments, setLoadingDocuments] = useState(false);
+
+  // Edit permission state
   const [docStatus, setDocStatus] = useState(null);
   const [loadingStatus, setLoadingStatus] = useState(false);
-  const [loadingReport, setLoadingReport] = useState(false);
-  const [hasReport, setHasReport] = useState(false);
 
   // Real 24-hour check
   const hasCompletedEncounter = !!selectedAppt.encounter_completed;
@@ -59,13 +67,11 @@ const AppointmentDetailModal = ({
       const hasDocumentation = docRes.status === 200;
 
       const permRes = await apiClient.get(`/doctor/encounter/${apptId}/edit-permission-status`);
-      const permData = permRes.data;
-
-      
+      const permData = permRes.data || {};
 
       setDocStatus({
         hasDocumentation,
-        canEdit: isWithin24Hours() || permData.can_edit,
+        canEdit: isWithin24Hours() || permData.can_edit || false,
         permissionStatus: permData.status || 'none'
       });
     } catch (err) {
@@ -83,73 +89,84 @@ const AppointmentDetailModal = ({
     }
   };
 
-  // NEW: Check if report exists for this appointment
-  const checkReportExists = async () => {
+  // Fetch both Encounter Documentation (SOAP) and Report metadata
+  const fetchDocuments = async () => {
     if (!selectedAppt.id && !selectedAppt._id) return;
-    
     const apptId = selectedAppt.id || selectedAppt._id;
+    setLoadingDocuments(true);
+
     try {
-      const res = await apiClient.get(`/doctor/reports/${apptId}`);  // We'll add this endpoint if needed
-      setHasReport(true);
+      const encRes = await apiClient.get(`/doctor/encounter/${apptId}`);
+      if (encRes.data?.status === 'success') {
+        setEncounterDoc(encRes.data.data);
+      } else {
+        setEncounterDoc(null);
+      }
     } catch (e) {
-      setHasReport(false);
+      console.log('No encounter documentation found yet');
+      setEncounterDoc(null);
+    }
+
+    try {
+      const repRes = await apiClient.get(`/doctor/reports/${apptId}`);
+      if (repRes.data?.status === 'success' && repRes.data.report_meta) {
+        setReportMeta(repRes.data.report_meta);
+      } else {
+        setReportMeta(null);
+      }
+    } catch (e) {
+      console.log('No report generated yet');
+      setReportMeta(null);
+    } finally {
+      setLoadingDocuments(false);
     }
   };
 
   useEffect(() => {
     fetchDocumentationStatus();
-    checkReportExists();
+    fetchDocuments();
   }, [selectedAppt]);
 
-  // Download Latest Report on Letterhead
-  // FIXED: Download Report - Use full backend URL to bypass React Router
-    // FIXED: Safe Report Download - Handles port changes + avoids React Router
-      const handleDownloadReport = async () => {
-        if (!selectedAppt?.id && !selectedAppt?._id) {
-          alert("No appointment selected");
-          return;
-        }
-
-        const apptId = selectedAppt.id || selectedAppt._id;
-        setLoadingReport(true);
-
-        try {
-          // 1. Fetch latest report metadata
-          const reportRes = await apiClient.get(`/doctor/reports/${apptId}`);
-
-          if (!reportRes.data?.report_meta?.report_id) {
-            alert("No report found for this appointment yet.\n\nPlease go to 'Edit Documentation' and generate the report first.");
-            return;
-          }
-
-          const reportId = reportRes.data.report_meta.report_id;
-
-          // 2. CRITICAL: Build FULL backend URL using the same base as apiClient
-          const baseURL = apiClient.defaults.baseURL || import.meta.env.VITE_API_BASE_URL || 'http://127.0.0.1:5000';
-          
-          // Remove trailing slash if present
-          const cleanBase = baseURL.endsWith('/') ? baseURL.slice(0, -1) : baseURL;
-          
-          const downloadUrl = `${cleanBase}/doctor/download-report/${reportId}`;
-
-          console.log("Opening download URL:", downloadUrl); // For debugging
-
-          // Open directly in new tab → hits Flask backend, bypasses React Router completely
-          window.open(downloadUrl, '_blank');
-
-        } catch (err) {
-          console.error("Download report error:", err);
-          
-          if (err.response?.status === 404) {
-            alert("No report generated yet for this appointment.\n\nSteps:\n1. Click 'Edit Documentation'\n2. Fill required SOAP notes\n3. Click 'Generate Report on Letterhead'\n4. Return here and try download again.");
-          } else {
-            alert("Failed to fetch report information. Please check console and try again.");
-          }
-        } finally {
-          setLoadingReport(false);
-        }
-      };
-
+  // Download Report (PDF)
+  const handleDownloadReport = async () => {
+    if (!reportMeta?.report_id) {
+      alert('No report generated yet.\n\nPlease generate the report first from the Encounter Documentation.');
+      return;
+    }
+  
+    const baseURL = import.meta.env.VITE_API_BASE_URL || 'http://127.0.0.1:5000';
+    const downloadUrl = `${baseURL}/doctor/download-report/${reportMeta.report_id}`;
+  
+    try {
+      const response = await fetch(downloadUrl, {
+        method: 'GET',
+      });
+  
+      if (!response.ok) {
+        throw new Error(`Server error: ${response.status} ${response.statusText}`);
+      }
+  
+      const blob = await response.blob();
+      const url = window.URL.createObjectURL(blob);
+      
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = reportMeta.filename || `medical_report_${reportMeta.report_id.slice(0, 8)}.pdf`;
+      document.body.appendChild(a);
+      a.click();
+  
+      // Cleanup
+      setTimeout(() => {
+        document.body.removeChild(a);
+        window.URL.revokeObjectURL(url);
+      }, 150);
+  
+      console.log('Report downloaded successfully');
+    } catch (err) {
+      console.error('Download failed:', err);
+      alert(`Download failed: ${err.message || 'Unknown error'}\n\nPlease check backend logs and try again.`);
+    }
+  };
   const handleEditDocumentation = () => {
     const width = 1200;
     const height = 900;
@@ -313,7 +330,7 @@ const AppointmentDetailModal = ({
               )}
             </section>
 
-            {/* Vitals Section */}
+            {/* Vitals Section - unchanged */}
             <section>
               <div className="flex items-center justify-between mb-4">
                 <h3 className="text-lg font-semibold text-teal-800 flex items-center gap-2">
@@ -347,6 +364,7 @@ const AppointmentDetailModal = ({
 
               <div className="bg-white border border-gray-200 rounded-xl p-5">
                 <div className="grid grid-cols-2 md:grid-cols-4 gap-6">
+                  {/* Height, Weight, BMI, BP inputs - unchanged */}
                   <div>
                     <div className="flex items-center gap-2 mb-1.5">
                       <Ruler size={17} className="text-teal-600" />
@@ -456,7 +474,7 @@ const AppointmentDetailModal = ({
               </div>
             </section>
 
-            {/* Chief Concerns & Medical History */}
+            {/* Chief Concerns & Medical History - unchanged */}
             <section>
               <h3 className="text-lg font-semibold text-teal-800 mb-4 flex items-center gap-2">
                 <AlertTriangle size={20} className="text-teal-600" />
@@ -493,7 +511,7 @@ const AppointmentDetailModal = ({
               </div>
             </section>
 
-            {/* Patient Appointment History */}
+            {/* Patient Appointment History - unchanged */}
             <section>
               <h3 className="text-lg font-semibold text-teal-800 mb-4 flex items-center gap-2">
                 <History size={20} className="text-teal-600" />
@@ -551,6 +569,63 @@ const AppointmentDetailModal = ({
               )}
             </section>
 
+            {/* DOCUMENTS SECTION */}
+            <section>
+              <h3 className="text-lg font-semibold text-teal-800 mb-4 flex items-center gap-2">
+                <FileText size={20} className="text-teal-600" />
+                Documents & Reports
+                {loadingDocuments && <Loader2 className="animate-spin h-5 w-5 ml-2" />}
+              </h3>
+
+              <div className="flex flex-col gap-3">
+                {/* Encounter Documentation Button */}
+                <button
+                  onClick={handleEditDocumentation}
+                  disabled={!encounterDoc}
+                  className={`flex items-center justify-between w-full p-4 rounded-2xl border transition-all text-left
+                    ${encounterDoc 
+                      ? 'border-teal-200 hover:bg-teal-50 text-teal-700' 
+                      : 'border-gray-200 text-gray-400 cursor-not-allowed'}`}
+                >
+                  <div className="flex items-center gap-3">
+                    <FileEdit size={20} />
+                    <div>
+                      <p className="font-medium">Encounter Documentation (SOAP)</p>
+                      <p className="text-xs text-gray-500">
+                        {encounterDoc ? 'SOAP notes saved • Click to edit' : 'Not created yet'}
+                      </p>
+                    </div>
+                  </div>
+                  <span className="text-teal-600 text-sm font-medium">View / Edit →</span>
+                </button>
+
+                {/* Generated Report Button */}
+                <button
+                  onClick={handleDownloadReport}
+                  disabled={!reportMeta}
+                  className={`flex items-center justify-between w-full p-4 rounded-2xl border transition-all text-left
+                    ${reportMeta 
+                      ? 'border-emerald-200 hover:bg-emerald-50 text-emerald-700' 
+                      : 'border-gray-200 text-gray-400 cursor-not-allowed'}`}
+                >
+                  <div className="flex items-center gap-3">
+                    <Download size={20} />
+                    <div>
+                      <p className="font-medium">Generated Report on Letterhead (PDF)</p>
+                      <p className="text-xs text-gray-500">
+                        {reportMeta 
+                          ? `Generated ${new Date(reportMeta.generated_at).toLocaleDateString('en-GB')}` 
+                          : 'Not generated yet'}
+                      </p>
+                    </div>
+                  </div>
+                  <span className="text-emerald-600 text-sm font-medium">
+                    {reportMeta ? 'Download PDF →' : 'Generate First'}
+                  </span>
+                </button>
+              </div>
+            </section>
+
             {/* SINGLE MAIN ACTION BUTTON */}
             <div className="flex flex-wrap gap-3 pt-6 border-t">
               <button
@@ -579,32 +654,6 @@ const AppointmentDetailModal = ({
                   Recall Patient
                 </button>
               )}
-
-              <button
-                onClick={handleDownloadReport}
-                disabled={loadingReport || !hasReport}
-                className={`flex-1 py-3 px-6 rounded-2xl font-medium flex items-center justify-center gap-2 transition-all text-sm min-h-[52px] 
-                  ${hasReport 
-                    ? 'bg-emerald-600 hover:bg-emerald-700 text-white' 
-                    : 'bg-gray-100 text-gray-500 cursor-not-allowed border border-gray-200'}`}
-              >
-                {loadingReport ? (
-                  <>
-                    <Loader2 className="animate-spin h-4 w-4" />
-                    Loading...
-                  </>
-                ) : hasReport ? (
-                  <>
-                    <Download size={17} />
-                    Download Report (PDF)
-                  </>
-                ) : (
-                  <>
-                    <FileText size={17} />
-                    Generate Report First
-                  </>
-                )}
-              </button>
             </div>
           </div>
         </div>
@@ -618,7 +667,7 @@ const AppointmentDetailModal = ({
         patientData={patientData}
         currentDoctorName={currentDoctorName}
         onReferralSuccess={handleReferralSuccess}
-      ></DoctorReferPatientModal>
+      />
     </>
   );
 };

@@ -2,13 +2,12 @@
 import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import axios from 'axios';
 import { 
-  Users, Search, Download, Plus, X, ChevronUp, ChevronDown 
+  Users, Search, Download, Plus, X, ChevronUp, ChevronDown, Edit 
 } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import PatientDetailModal from '../../components/AdminComponents/PatientDetailsModal';
 import PatientForm from '../../components/AdminComponents/PatientFormModal';
 import useEscapeKey from '../../hooks/UseEscapeKey';
-import { debounce } from 'lodash';
 
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://127.0.0.1:8000';
 const apiClient = axios.create({ baseURL: API_BASE_URL });
@@ -17,25 +16,21 @@ const AdminPatientsPage = ({ role = 'Clinic Admin', primaryColor = '#0d9488' }) 
   const navigate = useNavigate();
   
   const [patients, setPatients] = useState([]);           // Raw data from backend
-  const [filteredPatients, setFilteredPatients] = useState([]); // Client-side filtered & sorted
   const [loading, setLoading] = useState(true);
   
   const [searchTerm, setSearchTerm] = useState('');
   const [insuranceFilter, setInsuranceFilter] = useState('All');
   const [sortConfig, setSortConfig] = useState({ key: 'patient_name', direction: 'asc' });
   
-  const [showAddModal, setShowAddModal] = useState(false);
-  const [selectedPatient, setSelectedPatient] = useState(null);
-  const [patientDetail, setPatientDetail] = useState(null);
-  const [detailLoading, setDetailLoading] = useState(false);
-
-  // Form state for adding patient
+  const [showFormModal, setShowFormModal] = useState(false);
+  const [isEditMode, setIsEditMode] = useState(false);
+  const [currentPatientId, setCurrentPatientId] = useState(null);
   const [formData, setFormData] = useState({
     patient_name: '',
     file_number: '',
     eid: '',
     phone: '',
-    dob: '',                    // Will be stored as DD/MM/YYYY string
+    dob: '',
     gender: 'Male',
     address: '',
     company_name: '',
@@ -44,30 +39,26 @@ const AdminPatientsPage = ({ role = 'Clinic Admin', primaryColor = '#0d9488' }) 
     payer: '',
     network: '',
     member_id: '',
-    discount_percent: '0'
+    discount_percent: '0',
+    attached_document_ids: [],
+    existingDocuments: [],
   });
+
+  const [selectedPatientForDetail, setSelectedPatientForDetail] = useState(null);
 
   useEscapeKey(() => {
-    if (showAddModal) setShowAddModal(false);
-    if (selectedPatient) setSelectedPatient(null);
+    if (showFormModal) setShowFormModal(false);
+    if (selectedPatientForDetail) setSelectedPatientForDetail(null);
   });
 
-  // Fetch raw patients once (no filters in query)
+  // Fetch all patients
   const fetchPatients = useCallback(async () => {
     try {
       setLoading(true);
       const res = await apiClient.get('/admin/patients', { 
-        params: { limit: 500 }   // Increased limit for client-side filtering
+        params: { limit: 500 }
       });
-      const rawPatients = res.data.data || [];
-      
-      // Normalize DOB to DD/MM/YYYY on load
-      const normalized = rawPatients.map(p => ({
-        ...p,
-        dob: normalizeDOB(p.dob)   // Helper to fix format
-      }));
-      
-      setPatients(normalized);
+      setPatients(res.data.data || []);
     } catch (err) {
       console.error('Patients fetch error:', err);
     } finally {
@@ -75,30 +66,16 @@ const AdminPatientsPage = ({ role = 'Clinic Admin', primaryColor = '#0d9488' }) 
     }
   }, []);
 
-  // Helper: Convert any DOB format to DD/MM/YYYY
-  const normalizeDOB = (dob) => {
-    if (!dob) return '';
-    // If already DD/MM/YYYY, return as-is
-    if (/^\d{2}\/\d{2}\/\d{4}$/.test(dob)) return dob;
-    
-    try {
-      const date = new Date(dob);
-      if (isNaN(date.getTime())) return dob; // Invalid → keep original
-      
-      const day = String(date.getDate()).padStart(2, '0');
-      const month = String(date.getMonth() + 1).padStart(2, '0');
-      const year = date.getFullYear();
-      return `${day}/${month}/${year}`;
-    } catch {
-      return dob;
-    }
-  };
+  useEffect(() => {
+    document.documentElement.style.setProperty('--primary-color', primaryColor);
+    fetchPatients();
+  }, [fetchPatients]);
 
-  // Client-side filtering + sorting (runs on every change)
+  // Client-side filtering + sorting
   const processedPatients = useMemo(() => {
     let result = [...patients];
 
-    // Search filter (multi-field)
+    // Search
     if (searchTerm.trim()) {
       const term = searchTerm.toLowerCase().trim();
       result = result.filter(p => 
@@ -109,7 +86,7 @@ const AdminPatientsPage = ({ role = 'Clinic Admin', primaryColor = '#0d9488' }) 
       );
     }
 
-    // Insurance / Billing Type filter
+    // Insurance filter
     if (insuranceFilter !== 'All') {
       result = result.filter(p => 
         (p.billing_type || 'Cash').toLowerCase() === insuranceFilter.toLowerCase()
@@ -122,16 +99,12 @@ const AdminPatientsPage = ({ role = 'Clinic Admin', primaryColor = '#0d9488' }) 
         let valA = a[sortConfig.key] || '';
         let valB = b[sortConfig.key] || '';
 
-        // Special handling for DOB (compare as dates)
         if (sortConfig.key === 'dob') {
           const dateA = valA ? new Date(valA.split('/').reverse().join('-')) : new Date(0);
           const dateB = valB ? new Date(valB.split('/').reverse().join('-')) : new Date(0);
-          return sortConfig.direction === 'asc' 
-            ? dateA - dateB 
-            : dateB - dateA;
+          return sortConfig.direction === 'asc' ? dateA - dateB : dateB - dateA;
         }
 
-        // String comparison for other fields
         if (typeof valA === 'string') valA = valA.toLowerCase();
         if (typeof valB === 'string') valB = valB.toLowerCase();
 
@@ -144,13 +117,6 @@ const AdminPatientsPage = ({ role = 'Clinic Admin', primaryColor = '#0d9488' }) 
     return result;
   }, [patients, searchTerm, insuranceFilter, sortConfig]);
 
-  // Trigger fetch on mount
-  useEffect(() => {
-    document.documentElement.style.setProperty('--primary-color', primaryColor);
-    fetchPatients();
-  }, [fetchPatients]);
-
-  // Handle table header click for sorting
   const handleSort = (key) => {
     setSortConfig(prev => ({
       key,
@@ -158,42 +124,89 @@ const AdminPatientsPage = ({ role = 'Clinic Admin', primaryColor = '#0d9488' }) 
     }));
   };
 
-  const handleAddPatient = async (e) => {
+  // ==================== ADD NEW PATIENT ====================
+  const openAddModal = () => {
+    setFormData({
+      patient_name: '',
+      file_number: '',
+      eid: '',
+      phone: '',
+      dob: '',
+      gender: 'Male',
+      address: '',
+      company_name: '',
+      billing_type: 'Cash',
+      receiver: '',
+      payer: '',
+      network: '',
+      member_id: '',
+      discount_percent: '0',
+      attached_document_ids: [],
+      existingDocuments: [],
+    });
+    setIsEditMode(false);
+    setCurrentPatientId(null);
+    setShowFormModal(true);
+  };
+
+  // ==================== EDIT PATIENT ====================
+  const openEditModal = async (patient) => {
+    try {
+      const res = await apiClient.get(`/admin/patients/${patient._id || patient.id}`);
+      const fullData = res.data.data || res.data;
+
+      setFormData({
+        ...fullData,
+        attached_document_ids: fullData.attached_document_ids || [],
+        existingDocuments: fullData.existingDocuments || [],
+      });
+
+      setCurrentPatientId(patient._id || patient.id);
+      setIsEditMode(true);
+      setShowFormModal(true);
+    } catch (err) {
+      console.error('Failed to load patient for edit:', err);
+      alert('Failed to load patient details for editing');
+    }
+  };
+
+  // ==================== FORM SUBMIT (Add or Update) ====================
+  const handleFormSubmit = async (e) => {
     e.preventDefault();
-    if (!formData.patient_name || !formData.phone) {
-      alert('Name and Phone are required');
+
+    if (!formData.patient_name?.trim() || !formData.phone?.trim()) {
+      alert('Patient name and phone number are required');
       return;
     }
 
     try {
-      // Ensure DOB is in DD/MM/YYYY before sending
       const payload = {
         ...formData,
-        dob: normalizeDOB(formData.dob)
+        attached_document_ids: formData.attached_document_ids || [],
       };
 
-      await apiClient.post('/admin/patients', payload);
-      alert('Patient added successfully');
-      setShowAddModal(false);
-      
-      // Reset form
-      setFormData({
-        patient_name: '', file_number: '', eid: '', phone: '', dob: '', gender: 'Male',
-        address: '', company_name: '', billing_type: 'Cash',
-        receiver: '', payer: '', network: '', member_id: '', discount_percent: '0'
-      });
-      
+      if (isEditMode && currentPatientId) {
+        // UPDATE
+        await apiClient.put(`/admin/patients/${currentPatientId}`, payload);
+        alert('Patient updated successfully');
+      } else {
+        // CREATE
+        await apiClient.post('/admin/patients', payload);
+        alert('Patient created successfully');
+      }
+
+      setShowFormModal(false);
       fetchPatients(); // Refresh list
     } catch (err) {
-      alert('Failed to add patient');
       console.error(err);
+      alert(err.response?.data?.message || 'Failed to save patient');
     }
   };
 
   const exportToCSV = () => {
-    let csv = 'File No,Name,Phone,DOB,Gender,Type,Last Visit\n';
+    let csv = 'File No,Name,Phone,DOB,Gender,Billing Type,Company\n';
     processedPatients.forEach(p => {
-      csv += `"${p.file_number || p.eid || ''}","${p.patient_name || ''}","${p.phone || ''}","${p.dob || ''}","${p.gender || ''}","${p.billing_type || 'Cash'}","${p.lastVisit || ''}"\n`;
+      csv += `"${p.file_number || p.eid || ''}","${p.patient_name || ''}","${p.phone || ''}","${p.dob || ''}","${p.gender || ''}","${p.billing_type || 'Cash'}","${p.company_name || ''}"\n`;
     });
 
     const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
@@ -219,7 +232,7 @@ const AdminPatientsPage = ({ role = 'Clinic Admin', primaryColor = '#0d9488' }) 
       <div className="flex flex-col sm:flex-row sm:items-center justify-between mb-10 gap-4">
         <div>
           <h1 className="text-3xl font-bold text-[var(--primary-color)]">Patients Management</h1>
-          <p className="text-gray-500 mt-1">Clinic Admin • {new Date().toLocaleDateString('en-GB')}</p>
+          <p className="text-gray-500 mt-1">Clinic Admin Portal • {new Date().toLocaleDateString('en-GB')}</p>
         </div>
         <div className="flex gap-3">
           <button
@@ -229,7 +242,7 @@ const AdminPatientsPage = ({ role = 'Clinic Admin', primaryColor = '#0d9488' }) 
             <Download size={18} /> Export List
           </button>
           <button
-            onClick={() => setShowAddModal(true)}
+            onClick={openAddModal}
             className="flex items-center gap-2 bg-[var(--primary-color)] text-white px-6 py-2.5 rounded-xl hover:opacity-90 font-medium"
           >
             <Plus size={18} /> Add Patient
@@ -245,7 +258,7 @@ const AdminPatientsPage = ({ role = 'Clinic Admin', primaryColor = '#0d9488' }) 
             <input
               type="text"
               value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}   // Removed debounce from onChange
+              onChange={(e) => setSearchTerm(e.target.value)}
               placeholder="Search name, phone, file#, EID..."
               className="w-full pl-10 pr-4 py-2.5 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[var(--primary-color)]"
             />
@@ -275,73 +288,59 @@ const AdminPatientsPage = ({ role = 'Clinic Admin', primaryColor = '#0d9488' }) 
           <table className="min-w-full divide-y divide-gray-200">
             <thead className="bg-gray-50">
               <tr>
-                <th 
-                  onClick={() => handleSort('file_number')}
-                  className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase cursor-pointer hover:bg-gray-100"
-                >
-                  File No {sortConfig.key === 'file_number' && (sortConfig.direction === 'asc' ? <ChevronUp size={14} className="inline"/> : <ChevronDown size={14} className="inline"/>)}
+                <th onClick={() => handleSort('file_number')} className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase cursor-pointer hover:bg-gray-100">
+                  File No {sortConfig.key === 'file_number' && (sortConfig.direction === 'asc' ? <ChevronUp size={14} className="inline" /> : <ChevronDown size={14} className="inline" />)}
                 </th>
-                <th 
-                  onClick={() => handleSort('patient_name')}
-                  className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase cursor-pointer hover:bg-gray-100"
-                >
-                  Name {sortConfig.key === 'patient_name' && (sortConfig.direction === 'asc' ? <ChevronUp size={14} className="inline"/> : <ChevronDown size={14} className="inline"/>)}
+                <th onClick={() => handleSort('patient_name')} className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase cursor-pointer hover:bg-gray-100">
+                  Name {sortConfig.key === 'patient_name' && (sortConfig.direction === 'asc' ? <ChevronUp size={14} className="inline" /> : <ChevronDown size={14} className="inline" />)}
                 </th>
-                <th 
-                  onClick={() => handleSort('phone')}
-                  className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase cursor-pointer hover:bg-gray-100"
-                >
+                <th onClick={() => handleSort('phone')} className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase cursor-pointer hover:bg-gray-100">
                   Phone
                 </th>
-                <th 
-                  onClick={() => handleSort('dob')}
-                  className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase cursor-pointer hover:bg-gray-100"
-                >
-                  DOB {sortConfig.key === 'dob' && (sortConfig.direction === 'asc' ? <ChevronUp size={14} className="inline"/> : <ChevronDown size={14} className="inline"/>)}
+                <th onClick={() => handleSort('dob')} className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase cursor-pointer hover:bg-gray-100">
+                  DOB {sortConfig.key === 'dob' && (sortConfig.direction === 'asc' ? <ChevronUp size={14} className="inline" /> : <ChevronDown size={14} className="inline" />)}
                 </th>
-                <th 
-                  onClick={() => handleSort('gender')}
-                  className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase cursor-pointer hover:bg-gray-100"
-                >
+                <th onClick={() => handleSort('gender')} className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase cursor-pointer hover:bg-gray-100">
                   Gender
                 </th>
-                <th 
-                  onClick={() => handleSort('billing_type')}
-                  className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase cursor-pointer hover:bg-gray-100"
-                >
-                  Type
+                <th onClick={() => handleSort('billing_type')} className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase cursor-pointer hover:bg-gray-100">
+                  Billing Type
                 </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Last Visit</th>
                 <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase">Actions</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-gray-200">
               {loading ? (
-                <tr><td colSpan={8} className="py-10 text-center text-gray-500">Loading patients...</td></tr>
+                <tr><td colSpan={7} className="py-12 text-center text-gray-500">Loading patients...</td></tr>
               ) : processedPatients.length === 0 ? (
-                <tr><td colSpan={8} className="py-10 text-center text-gray-500">No patients found</td></tr>
+                <tr><td colSpan={7} className="py-12 text-center text-gray-500">No patients found</td></tr>
               ) : (
                 processedPatients.map(p => (
                   <tr key={p._id || p.id} className="hover:bg-gray-50">
                     <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">{p.file_number || p.eid || '-'}</td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm">{p.patient_name}</td>
+                    <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">{p.patient_name}</td>
                     <td className="px-6 py-4 whitespace-nowrap text-sm">{p.phone || '-'}</td>
                     <td className="px-6 py-4 whitespace-nowrap text-sm">{p.dob || '-'}</td>
                     <td className="px-6 py-4 whitespace-nowrap text-sm">{p.gender || '-'}</td>
                     <td className="px-6 py-4 whitespace-nowrap">
-                      <span className={`inline-flex px-2.5 py-1 text-xs font-medium rounded-full ${
-                        p.billing_type === 'Insurance' ? 'bg-blue-100 text-blue-800' : 'bg-green-100 text-green-800'
+                      <span className={`inline-flex px-3 py-1 text-xs font-medium rounded-full ${
+                        p.billing_type === 'Insurance' ? 'bg-blue-100 text-blue-700' : 'bg-emerald-100 text-emerald-700'
                       }`}>
                         {p.billing_type || 'Cash'}
                       </span>
                     </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm">{p.lastVisit || '-'}</td>
-                    <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
+                    <td className="px-6 py-4 whitespace-nowrap text-right">
                       <button
-                        onClick={() => setSelectedPatient(p)}
-                        className="text-[var(--primary-color)] hover:underline"
+                        onClick={() => setSelectedPatientForDetail(p)}
+                        className="text-teal-600 hover:text-teal-700 mr-4"
                       >
                         View
+                      </button>
+                      <button
+                        onClick={() => openEditModal(p)}
+                        className="text-amber-600 hover:text-amber-700 flex items-center gap-1"
+                      >
+                        <Edit size={16} /> Edit
                       </button>
                     </td>
                   </tr>
@@ -352,25 +351,26 @@ const AdminPatientsPage = ({ role = 'Clinic Admin', primaryColor = '#0d9488' }) 
         </div>
       </div>
 
-      {/* Add Patient Modal */}
-      {showAddModal && (
-        <div className="fixed inset-0 bg-black/40 backdrop-blur-sm flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-2xl max-w-2xl w-full max-h-[90vh] overflow-y-auto">
-            <div className="sticky top-0 bg-white p-6 border-b flex justify-between items-center">
-              <h2 className="text-2xl font-bold">Add New Patient</h2>
-              <button onClick={() => setShowAddModal(false)}>
-                <X size={28} className="text-gray-500 hover:text-gray-800" />
+      {/* Patient Form Modal (Add / Edit) */}
+      {showFormModal && (
+        <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-3xl w-full max-w-4xl max-h-[92vh] flex flex-col shadow-2xl overflow-hidden">
+            <div className="px-6 py-5 border-b flex justify-between items-center">
+              <h2 className="text-2xl font-bold text-gray-900">
+                {isEditMode ? 'Edit Patient' : 'Add New Patient'}
+              </h2>
+              <button onClick={() => setShowFormModal(false)} className="text-gray-400 hover:text-gray-600">
+                <X size={28} />
               </button>
             </div>
-            <div className="p-6">
+
+            <div className="flex-1 overflow-y-auto p-6">
               <PatientForm
                 formData={formData}
                 setFormData={setFormData}
-                onSubmit={handleAddPatient}
-                onCancel={() => setShowAddModal(false)}
-                receivers={[]}
-                payers={[]}
-                networks={[]}
+                onSubmit={handleFormSubmit}
+                onCancel={() => setShowFormModal(false)}
+                isEdit={isEditMode}
               />
             </div>
           </div>
@@ -378,12 +378,10 @@ const AdminPatientsPage = ({ role = 'Clinic Admin', primaryColor = '#0d9488' }) 
       )}
 
       {/* Patient Detail Modal */}
-      {selectedPatient && (
+      {selectedPatientForDetail && (
         <PatientDetailModal
-          patient={selectedPatient}
-          onClose={() => setSelectedPatient(null)}
-          detailLoading={detailLoading}
-          patientDetail={patientDetail}
+          patient={selectedPatientForDetail}
+          onClose={() => setSelectedPatientForDetail(null)}
         />
       )}
     </div>

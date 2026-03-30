@@ -40,6 +40,8 @@ const initialForm = {
   patient_id: '',
   existingDocuments: [],
   attached_document_ids: [],
+  attachedDocuments: [],      // ← NEW: full objects for display
+  currentDocumentType: '',
   ai_consent: false,
 
 };

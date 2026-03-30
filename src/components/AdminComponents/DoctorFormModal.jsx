@@ -19,34 +19,34 @@ const DoctorFormModal = ({ isOpen, onClose, doctor = null, onSave }) => {
     { id: 'personal', label: 'Personal Info' },
     { id: 'education', label: 'Education' },
     { id: 'experience', label: 'Experience' },
-    { id: 'work', label: 'Work Configuration' },   // ← This was causing shrink
+    { id: 'work', label: 'Work Configuration' },
   ];
 
   const [activeTabIndex, setActiveTabIndex] = useState(0);
   const activeTabId = tabs[activeTabIndex].id;
 
   const [formData, setFormData] = useState({
-    name: '', 
-    specialty: '', 
-    avatar: '', 
-    email: '', 
-    phone: '', 
-    bio: '', 
+    name: '',
+    specialty: '',
+    avatar: '',
+    email: '',
+    phone: '',
+    bio: '',
     experienceYears: '',
-    qualifications: [], 
-    educationHistory: [], 
+    qualifications: [],
+    educationHistory: [],
     workHistory: [],
     currentEmployment: {
-      department: '', 
-      designation: '', 
-      joinDate: '', 
+      department: '',
+      designation: '',
+      joinDate: '',
       slotsPerDay: 20,
-      consultationFee: '', 
-      shiftStart: '', 
-      shiftEnd: ''
+      consultationFee: '',
+      shiftStart: '',
+      shiftEnd: '',
     },
-    experienceDocuments: [], 
-    educationDocuments: []
+    experienceDocuments: [],
+    educationDocuments: [],
   });
 
   const [errors, setErrors] = useState({});
@@ -63,7 +63,7 @@ const DoctorFormModal = ({ isOpen, onClose, doctor = null, onSave }) => {
     setLoadingSpecialties(true);
     try {
       const res = await apiClient.get('/admin/masters/specialities');
-      setSpecialties(res.data.data || []);
+      setSpecialties(res.data.data || res.data || []);
     } catch (err) {
       console.error('Failed to load specialties:', err);
       setSpecialties([]);
@@ -94,6 +94,11 @@ const DoctorFormModal = ({ isOpen, onClose, doctor = null, onSave }) => {
       }
     }
 
+    // Work tab validation can be added later if needed
+    if (activeTabId === 'work') {
+      // Example: if ( !formData.currentEmployment.shiftStart ) newErrors.shift = 'Shift start is recommended';
+    }
+
     setErrors(newErrors);
     return Object.keys(newErrors).length === 0;
   }, [activeTabId, formData]);
@@ -101,7 +106,9 @@ const DoctorFormModal = ({ isOpen, onClose, doctor = null, onSave }) => {
   useEffect(() => {
     if (isOpen) {
       fetchSpecialties();
+
       if (doctor) {
+        // Edit mode
         setFormData({
           name: doctor.name || '',
           specialty: doctor.specialty || '',
@@ -114,30 +121,50 @@ const DoctorFormModal = ({ isOpen, onClose, doctor = null, onSave }) => {
           educationHistory: doctor.educationHistory || [],
           workHistory: doctor.workHistory || [],
           currentEmployment: {
-            department: '', designation: '', joinDate: '', slotsPerDay: 20,
-            consultationFee: '', shiftStart: '', shiftEnd: '',
-            ...doctor.currentEmployment
+            department: '',
+            designation: '',
+            joinDate: '',
+            slotsPerDay: 20,
+            consultationFee: '',
+            shiftStart: '',
+            shiftEnd: '',
+            ...doctor.currentEmployment,
           },
           experienceDocuments: doctor.experienceDocuments || [],
-          educationDocuments: doctor.educationDocuments || []
+          educationDocuments: doctor.educationDocuments || [],
         });
         setAvatarPreview(doctor.avatar || null);
       } else {
+        // Add new mode - reset everything
         setFormData({
-          name: '', specialty: '', avatar: '', email: '', phone: '', bio: '', experienceYears: '',
-          qualifications: [], educationHistory: [], workHistory: [],
+          name: '',
+          specialty: '',
+          avatar: '',
+          email: '',
+          phone: '',
+          bio: '',
+          experienceYears: '',
+          qualifications: [],
+          educationHistory: [],
+          workHistory: [],
           currentEmployment: {
-            department: '', designation: '', joinDate: '', slotsPerDay: 20,
-            consultationFee: '', shiftStart: '', shiftEnd: ''
+            department: '',
+            designation: '',
+            joinDate: '',
+            slotsPerDay: 20,
+            consultationFee: '',
+            shiftStart: '',
+            shiftEnd: '',
           },
-          experienceDocuments: [], 
-          educationDocuments: []
+          experienceDocuments: [],
+          educationDocuments: [],
         });
         setAvatarPreview(null);
         setAvatarFile(null);
         setTempEduDocs([]);
         setTempExpDocs([]);
       }
+
       setActiveTabIndex(0);
       setErrors({});
     }
@@ -145,57 +172,63 @@ const DoctorFormModal = ({ isOpen, onClose, doctor = null, onSave }) => {
 
   const handleChange = (e) => {
     const { name, value } = e.target;
+
     if (name.startsWith('currentEmployment.')) {
       const field = name.split('.')[1];
-      setFormData(prev => ({
+      setFormData((prev) => ({
         ...prev,
-        currentEmployment: { ...prev.currentEmployment, [field]: value }
+        currentEmployment: { ...prev.currentEmployment, [field]: value },
       }));
     } else {
-      setFormData(prev => ({ ...prev, [name]: value }));
+      setFormData((prev) => ({ ...prev, [name]: value }));
     }
 
+    // Clear error for this field
     if (errors[name]) {
-      setErrors(prev => ({ ...prev, [name]: '' }));
+      setErrors((prev) => ({ ...prev, [name]: '' }));
     }
   };
 
   const goToNextTab = () => {
     if (validateCurrentTab() && activeTabIndex < tabs.length - 1) {
-      setActiveTabIndex(activeTabIndex + 1);
+      setActiveTabIndex((prev) => prev + 1);
       setErrors({});
     }
   };
 
   const goToPrevTab = () => {
     if (activeTabIndex > 0) {
-      setActiveTabIndex(activeTabIndex - 1);
+      setActiveTabIndex((prev) => prev - 1);
       setErrors({});
     }
   };
 
   const handleSubmit = (e) => {
     e.preventDefault();
-    if (!validateCurrentTab()) return;
+
+    // Only submit if we are on the last tab AND validation passes
+    if (activeTabIndex !== tabs.length - 1 || !validateCurrentTab()) {
+      return;
+    }
 
     const payload = {
-      name: formData.name,
+      name: formData.name.trim(),
       specialty: formData.specialty,
-      email: formData.email,
-      phone: formData.phone,
-      bio: formData.bio,
+      email: formData.email.trim(),
+      phone: formData.phone.trim(),
+      bio: formData.bio || '',
       experienceYears: formData.experienceYears,
+      experience: formData.experienceYears, // backend compatibility
       qualifications: formData.qualifications,
       educationHistory: formData.educationHistory,
       workHistory: formData.workHistory,
       currentEmployment: formData.currentEmployment,
-      avatar: avatarPreview,
-      signature: formData.signature,
-      stamp: formData.stamp,
-      seal: formData.seal,
+      avatar: avatarPreview, // base64 or URL - backend already handles it
+      // signature, stamp, seal can be added later when WorkTab passes them up
     };
 
     onSave(payload, isEdit ? (doctor?._id || doctor?.id) : null);
+    // Do NOT call onClose here - let parent handle success/close
   };
 
   if (!isOpen) return null;
@@ -208,12 +241,15 @@ const DoctorFormModal = ({ isOpen, onClose, doctor = null, onSave }) => {
           <h2 className="text-2xl font-semibold text-gray-900">
             {isEdit ? 'Edit Doctor Profile' : 'Add New Doctor'}
           </h2>
-          <button onClick={onClose} className="text-gray-400 hover:text-gray-600">
+          <button
+            onClick={onClose}
+            className="text-gray-400 hover:text-gray-600 transition-colors"
+          >
             <X size={28} />
           </button>
         </div>
 
-        {/* Tab Navigation - FIXED: No more shrinking */}
+        {/* Tab Navigation */}
         <div className="flex border-b bg-gray-50 px-6 overflow-x-auto scrollbar-hide">
           {tabs.map((tab, index) => (
             <button
@@ -233,9 +269,9 @@ const DoctorFormModal = ({ isOpen, onClose, doctor = null, onSave }) => {
         <form onSubmit={handleSubmit} className="flex-1 overflow-hidden flex flex-col">
           <div className="flex-1 overflow-y-auto p-6 sm:p-8 w-full box-border">
             {activeTabId === 'personal' && (
-              <PersonalTab 
-                formData={formData} 
-                handleChange={handleChange} 
+              <PersonalTab
+                formData={formData}
+                handleChange={handleChange}
                 errors={errors}
                 avatarPreview={avatarPreview}
                 setAvatarPreview={setAvatarPreview}
@@ -246,8 +282,8 @@ const DoctorFormModal = ({ isOpen, onClose, doctor = null, onSave }) => {
             )}
 
             {activeTabId === 'education' && (
-              <EducationTab 
-                formData={formData} 
+              <EducationTab
+                formData={formData}
                 setFormData={setFormData}
                 tempEduDocs={tempEduDocs}
                 setTempEduDocs={setTempEduDocs}
@@ -256,10 +292,10 @@ const DoctorFormModal = ({ isOpen, onClose, doctor = null, onSave }) => {
             )}
 
             {activeTabId === 'experience' && (
-              <ExperienceTab 
-                formData={formData} 
+              <ExperienceTab
+                formData={formData}
                 setFormData={setFormData}
-                handleChange={handleChange} 
+                handleChange={handleChange}
                 errors={errors}
                 tempExpDocs={tempExpDocs}
                 setTempExpDocs={setTempExpDocs}
@@ -267,8 +303,8 @@ const DoctorFormModal = ({ isOpen, onClose, doctor = null, onSave }) => {
             )}
 
             {activeTabId === 'work' && (
-              <WorkTab 
-                formData={formData} 
+              <WorkTab
+                formData={formData}
                 handleChange={handleChange}
               />
             )}
@@ -289,7 +325,7 @@ const DoctorFormModal = ({ isOpen, onClose, doctor = null, onSave }) => {
               <button
                 type="button"
                 onClick={goToNextTab}
-                className="flex items-center gap-2 px-10 py-3.5 bg-[var(--primary-color)] text-white rounded-2xl hover:opacity-90 font-medium disabled:opacity-50 disabled:cursor-not-allowed"
+                className="flex items-center gap-2 px-10 py-3.5 bg-[var(--primary-color)] text-white rounded-2xl hover:opacity-90 font-medium disabled:opacity-50"
               >
                 Next <ArrowRight size={20} />
               </button>
