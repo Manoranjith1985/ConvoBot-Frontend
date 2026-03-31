@@ -6,6 +6,7 @@ import { Calendar, Download, Filter, Edit2, Trash2 } from 'lucide-react';
 import * as XLSX from 'xlsx';
 import { saveAs } from 'file-saver';
 import './OPDashboard.css';
+import useEscapeKey from '../../hooks/UseEscapeKey';
 
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://127.0.0.1:8000';
 const apiClient = axios.create({ baseURL: API_BASE_URL });
@@ -40,6 +41,13 @@ const OPDashboard = () => {
   // Modal state for Edit
   const [showEditModal, setShowEditModal] = useState(false);
   const [editingAppointment, setEditingAppointment] = useState(null);
+
+  useEscapeKey(() => {
+    if (showEditModal) {
+      setShowEditModal(false);
+      setEditingAppointment(null);
+    }
+  });
 
   useEffect(() => {
     const fetchData = async () => {

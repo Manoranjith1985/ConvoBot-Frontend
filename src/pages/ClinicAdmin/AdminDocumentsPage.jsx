@@ -1,6 +1,7 @@
 // src/pages/ClinicAdmin/AdminDocumentsPage.jsx
 import React, { useState, useEffect } from 'react';
 import axios from 'axios';
+import useEscapeKey from '../../hooks/UseEscapeKey';
 
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://127.0.0.1:8000';
 const apiClient = axios.create({ baseURL: API_BASE_URL });
@@ -21,7 +22,6 @@ const AdminDocumentsPage = () => {
   const [loading, setLoading] = useState(false);
   const [fetchLoading, setFetchLoading] = useState(true);
   const [error, setError] = useState(null);
-  const [showHistory, setShowHistory] = useState(false);
 
   const fetchDocuments = async () => {
     setFetchLoading(true);
@@ -96,6 +96,11 @@ const AdminDocumentsPage = () => {
     }
   };
 
+  // ESC Key to close preview modal
+  useEscapeKey(() => {
+    if (previewUrl) closePreview();
+  });
+
   const handleDelete = async (docId) => {
     if (!window.confirm('Delete this document?')) return;
     try {
@@ -130,7 +135,7 @@ const AdminDocumentsPage = () => {
         </div>
       )}
 
-      {/* Compact Slots Grid - Doctor Stamp & Seal Removed */}
+      {/* Compact Upload Slots Grid */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6 mb-10">
         {DOCUMENT_TYPES.map(({ key, label, accept }) => {
           const currentDoc = slotDocuments[key];
@@ -167,7 +172,7 @@ const AdminDocumentsPage = () => {
                 ) : (
                   <div className="text-gray-400 text-xs">
                     <div className="text-2xl mb-1">📄</div>
-                    No file
+                    No file uploaded
                   </div>
                 )}
               </div>
@@ -186,73 +191,12 @@ const AdminDocumentsPage = () => {
                   disabled={!selectedFile || loading}
                   className="w-full bg-blue-600 hover:bg-blue-700 disabled:bg-gray-400 text-white py-2.5 rounded-xl text-sm font-medium transition-colors"
                 >
-                  {loading ? 'Uploading...' : `Upload`}
+                  {loading ? 'Uploading...' : 'Upload'}
                 </button>
               </div>
             </div>
           );
         })}
-      </div>
-
-      {/* Compact History Section */}
-      <div className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
-        <div 
-          className="px-6 py-4 border-b flex justify-between items-center cursor-pointer hover:bg-gray-50"
-          onClick={() => setShowHistory(!showHistory)}
-        >
-          <h2 className="text-lg font-semibold text-gray-800">All Documents History</h2>
-          <span className="text-sm text-gray-500">
-            {showHistory ? 'Hide' : 'Show'} • {documents.length} files
-          </span>
-        </div>
-
-        {showHistory && (
-          fetchLoading ? (
-            <div className="px-6 py-8 text-center text-gray-500 text-sm">Loading history...</div>
-          ) : documents.length === 0 ? (
-            <div className="px-6 py-8 text-center text-gray-500 text-sm">No documents uploaded yet.</div>
-          ) : (
-            <div className="overflow-x-auto">
-              <table className="min-w-full text-sm">
-                <thead className="bg-gray-50">
-                  <tr>
-                    <th className="px-6 py-3 text-left font-medium text-gray-600">Type</th>
-                    <th className="px-6 py-3 text-left font-medium text-gray-600">File Name</th>
-                    <th className="px-6 py-3 text-left font-medium text-gray-600">Uploaded On</th>
-                    <th className="px-6 py-3 text-center font-medium text-gray-600 w-28">Actions</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y">
-                  {documents.map((doc) => (
-                    <tr key={doc._id} className="hover:bg-gray-50">
-                      <td className="px-6 py-4 capitalize font-medium text-gray-700">
-                        {doc.document_type?.replace('_', ' ') || 'Unknown'}
-                      </td>
-                      <td className="px-6 py-4 text-gray-600 truncate max-w-xs">{doc.file_name}</td>
-                      <td className="px-6 py-4 text-xs text-gray-500">
-                        {new Date(doc.created_at).toLocaleDateString('en-GB')}
-                      </td>
-                      <td className="px-6 py-4 text-center space-x-4">
-                        <button 
-                          onClick={() => handleView(doc._id)} 
-                          className="text-blue-600 hover:text-blue-700"
-                        >
-                          View
-                        </button>
-                        <button 
-                          onClick={() => handleDelete(doc._id)} 
-                          className="text-red-600 hover:text-red-700"
-                        >
-                          Delete
-                        </button>
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          )
-        )}
       </div>
 
       {/* Preview Modal */}

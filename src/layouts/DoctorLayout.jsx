@@ -3,6 +3,7 @@ import React from 'react';
 import { Outlet } from 'react-router-dom';
 import DoctorHeader from '../components/DoctorComponents/DoctorHeader';
 import DoctorSideMenu from '../components/DoctorComponents/DoctorSideMenu';
+import useCtrlBackspaceGoBack from '../hooks/useCtrlBackspace';
 
 const doctor = {
   name: "Test OP Doctor",

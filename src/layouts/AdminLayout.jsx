@@ -3,8 +3,11 @@ import React from 'react';
 import { Outlet } from 'react-router-dom';
 import AdminSideMenu from '../components/AdminComponents/AdminSideMenu';
 import AdminHeader from '../components/AdminComponents/AdminHeader';
+import useCtrlBackspaceGoBack from '../hooks/useCtrlBackspace';
 
 const AdminLayout = () => {
+  useCtrlBackspaceGoBack()
+
   return (
     <div className="flex min-h-screen bg-gray-50 font-sans">
       {/* Fixed Sidebar */}

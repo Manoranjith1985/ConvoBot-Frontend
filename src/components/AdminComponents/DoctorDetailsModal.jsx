@@ -2,6 +2,7 @@
 import React, { useState } from 'react';
 import { X, User, Award, Clock, Calendar, Edit, Trash2 } from 'lucide-react';
 import axios from 'axios';
+import useEscapeKey from '../../hooks/UseEscapeKey';
 
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://127.0.0.1:8000';
 const apiClient = axios.create({ baseURL: API_BASE_URL });
@@ -13,6 +14,10 @@ const DoctorDetailModal = ({
   onDoctorUpdated   // Optional callback to refresh list in parent
 }) => {
   const [isDeleting, setIsDeleting] = useState(false);
+
+  useEscapeKey(() => {
+    if (isOpen) onClose();
+  });
 
   if (!isOpen || !doctor) return null;
 

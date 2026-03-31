@@ -1,36 +1,50 @@
-// src/hooks/useCtrlBackspaceGoBack.js
+// src/hooks/useCtrlBackspaceGoBack.jsx
 import { useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useLocation } from 'react-router-dom';
 
 const useCtrlBackspaceGoBack = () => {
   const navigate = useNavigate();
+  const location = useLocation();
 
   useEffect(() => {
     const handleKeyDown = (e) => {
-      if (e.ctrlKey && e.key === 'Backspace') {
-        // Skip if user is typing in an input, textarea, or contenteditable field
+      // Only trigger on Ctrl + Backspace (or Cmd + Backspace on Mac)
+      if ((e.ctrlKey || e.metaKey) && e.key === 'Backspace') {
+        
+        // Skip if user is typing in input fields
         const active = document.activeElement;
-        const isInputField =
-          active.tagName === 'INPUT' ||
-          active.tagName === 'TEXTAREA' ||
-          active.tagName === 'SELECT' ||
+        const isInputField = 
+          active.tagName === 'INPUT' || 
+          active.tagName === 'TEXTAREA' || 
+          active.tagName === 'SELECT' || 
           active.isContentEditable;
 
-        if (!isInputField) {
-          e.preventDefault();           // Prevent any browser default
-          navigate(-1);                 // Go back one page in history
+        if (isInputField) return;
+
+        // Prevent default browser behavior
+        e.preventDefault();
+
+        // Avoid going back from root / auth / selection pages
+        const blockedPaths = ['/', '/select-role', '/doctor-select'];
+        if (blockedPaths.includes(location.pathname)) {
+          return;
         }
+
+        // Go back one step in history
+        navigate(-1);
       }
     };
 
-    // Attach globally
+    // Attach listener globally
     document.addEventListener('keydown', handleKeyDown);
 
     // Cleanup on unmount
     return () => {
       document.removeEventListener('keydown', handleKeyDown);
     };
-  }, [navigate]);
+  }, [navigate, location.pathname]);   // Re-attach if route changes
+
+  return null; // This is a side-effect only hook
 };
 
 export default useCtrlBackspaceGoBack;
