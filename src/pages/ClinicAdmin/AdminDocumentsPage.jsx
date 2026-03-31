@@ -7,8 +7,6 @@ const apiClient = axios.create({ baseURL: API_BASE_URL });
 
 const DOCUMENT_TYPES = [
   { key: 'letterhead', label: 'Clinic Letterhead', accept: 'image/jpeg,image/png,application/pdf' },
-  { key: 'doctor_stamp', label: 'Doctor Stamp', accept: 'image/jpeg,image/png,application/pdf' },
-  { key: 'doctor_seal', label: 'Doctor Seal', accept: 'image/jpeg,image/png,application/pdf' },
   { key: 'sick_leave_template', label: 'Sick Leave Template', accept: 'application/pdf' },
   { key: 'claim_form_template', label: 'Claim Form Template', accept: 'application/pdf' },
   { key: 'referral_letter_template', label: 'Referral Letter Template', accept: 'application/pdf' },
@@ -23,7 +21,7 @@ const AdminDocumentsPage = () => {
   const [loading, setLoading] = useState(false);
   const [fetchLoading, setFetchLoading] = useState(true);
   const [error, setError] = useState(null);
-  const [showHistory, setShowHistory] = useState(false);   // Collapsible history
+  const [showHistory, setShowHistory] = useState(false);
 
   const fetchDocuments = async () => {
     setFetchLoading(true);
@@ -132,7 +130,7 @@ const AdminDocumentsPage = () => {
         </div>
       )}
 
-      {/* Compact Slots Grid */}
+      {/* Compact Slots Grid - Doctor Stamp & Seal Removed */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6 mb-10">
         {DOCUMENT_TYPES.map(({ key, label, accept }) => {
           const currentDoc = slotDocuments[key];
@@ -145,7 +143,7 @@ const AdminDocumentsPage = () => {
             >
               <h3 className="font-semibold text-base text-gray-800 mb-4 truncate">{label}</h3>
 
-              {/* Preview Area - Smaller */}
+              {/* Preview Area */}
               <div className="mb-5 h-28 border-2 border-dashed border-gray-200 rounded-xl flex flex-col items-center justify-center bg-gray-50 overflow-hidden text-center">
                 {currentDoc ? (
                   <div className="text-xs w-full px-2">
@@ -174,7 +172,7 @@ const AdminDocumentsPage = () => {
                 )}
               </div>
 
-              {/* Upload Section - Compact */}
+              {/* Upload Section */}
               <div className="space-y-3">
                 <input
                   type="file"
@@ -196,7 +194,7 @@ const AdminDocumentsPage = () => {
         })}
       </div>
 
-      {/* Compact History Section - Collapsible */}
+      {/* Compact History Section */}
       <div className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
         <div 
           className="px-6 py-4 border-b flex justify-between items-center cursor-pointer hover:bg-gray-50"
@@ -231,7 +229,9 @@ const AdminDocumentsPage = () => {
                         {doc.document_type?.replace('_', ' ') || 'Unknown'}
                       </td>
                       <td className="px-6 py-4 text-gray-600 truncate max-w-xs">{doc.file_name}</td>
-                      <td className="px-6 py-4 text-xs text-gray-500">{doc.created_at}</td>
+                      <td className="px-6 py-4 text-xs text-gray-500">
+                        {new Date(doc.created_at).toLocaleDateString('en-GB')}
+                      </td>
                       <td className="px-6 py-4 text-center space-x-4">
                         <button 
                           onClick={() => handleView(doc._id)} 
@@ -255,7 +255,7 @@ const AdminDocumentsPage = () => {
         )}
       </div>
 
-      {/* Preview Modal - Unchanged but slightly tighter */}
+      {/* Preview Modal */}
       {previewUrl && (
         <div className="fixed inset-0 bg-black/80 flex items-center justify-center z-50 p-4">
           <div className="bg-white w-full max-w-5xl h-[90vh] rounded-3xl overflow-hidden flex flex-col shadow-2xl">

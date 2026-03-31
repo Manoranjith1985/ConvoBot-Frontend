@@ -1,30 +1,52 @@
 // src/components/DoctorHeader.jsx
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Bell, HelpCircle, Settings, User, LogOut, ChevronDown } from 'lucide-react';
+import { Bell, HelpCircle, Settings, User, LogOut, ChevronDown, Home } from 'lucide-react';
+import { useDoctor } from '../../context/DoctorContext';
 
 const DoctorHeader = () => {
   const navigate = useNavigate();
   const [dropdownOpen, setDropdownOpen] = useState(false);
+  const { selectedDoctor } = useDoctor();
 
-  // Simulate auth context – in real app use AuthContext or JWT decode
-  const doctor = JSON.parse(localStorage.getItem('doctor') || JSON.stringify({
-    name: "Dr. Test OP Doctor",
-    avatar: "https://images.unsplash.com/photo-1612349317150-e413f6a5b16d?w=400",
+  // Fallback if no doctor selected (should rarely happen)
+  const providerName = selectedDoctor?.name || 'Dr. Test OP Doctor';
+  const doctorId = selectedDoctor?.id;
+
+  const doctor = {
+    name: selectedDoctor?.name || providerName,
+    avatar: selectedDoctor?.avatar || "https://images.unsplash.com/photo-1612349317150-e413f6a5b16d?w=400",
     role: "Outpatient Doctor"
-  }));
+  };
 
   const handleLogout = () => {
     localStorage.removeItem('doctor');
     localStorage.removeItem('token');
-    navigate('/select-role');
+    localStorage.removeItem('selectedDoctor');   // Clear selected doctor on logout
+    navigate('/doctor-select');
+  };
+
+  // Navigate to current doctor's dashboard
+  const goToDashboard = () => {
+    if (doctorId) {
+      navigate(`/doctor-dashboard`);
+    } else {
+      // Fallback: go to selection page if no doctor selected
+      navigate('/doctor-select');
+    }
   };
 
   return (
     <header className="bg-white shadow-sm px-6 md:px-8 py-4 flex justify-between items-center border-b border-gray-200">
-      <h1 className="text-2xl md:text-3xl font-bold text-teal-700">
-        Doctor Dashboard
-      </h1>
+      <div className="flex items-center gap-4">
+        <button
+          onClick={goToDashboard}
+          className="flex items-center gap-2 text-teal-700 hover:text-teal-800 transition-colors font-semibold"
+        >
+          <Home className="w-5 h-5" />
+          <span>Doctor Dashboard</span>
+        </button>
+      </div>
 
       <div className="flex items-center gap-5 md:gap-7">
         <button className="relative p-1.5 hover:bg-teal-50 rounded-full transition-colors">
@@ -64,7 +86,11 @@ const DoctorHeader = () => {
               <button
                 onClick={() => {
                   setDropdownOpen(false);
-                  navigate('/doctor-profile');
+                  if (doctorId) {
+                    navigate(`/doctor/${doctorId}/profile`);
+                  } else {
+                    navigate('/doctor-select');
+                  }
                 }}
                 className="w-full px-5 py-3.5 text-left hover:bg-teal-50 flex items-center gap-3 text-gray-800 transition-colors"
               >

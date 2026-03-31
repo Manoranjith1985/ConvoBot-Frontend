@@ -10,6 +10,23 @@ const apiClient = axios.create({
   baseURL: import.meta.env.VITE_API_BASE_URL || 'http://127.0.0.1:8000'
 });
 
+// Reusable date formatter (consistent with AdminPatientsPage & doctor pages)
+const formatDateDDMMYYYY = (dateStr) => {
+  if (!dateStr) return '—';
+  
+  // If already in DD/MM/YYYY format, return as-is
+  if (/^\d{2}\/\d{2}\/\d{4}$/.test(dateStr.trim())) {
+    return dateStr.trim();
+  }
+
+  const d = new Date(dateStr);
+  if (isNaN(d.getTime())) return String(dateStr); // fallback
+
+  return `${d.getDate().toString().padStart(2, '0')}/${
+    (d.getMonth() + 1).toString().padStart(2, '0')
+  }/${d.getFullYear()}`;
+};
+
 const PatientDetailModal = ({ patient, onClose }) => {
   const [detail, setDetail] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -38,32 +55,15 @@ const PatientDetailModal = ({ patient, onClose }) => {
     }
   };
 
-  // Direct backend document view (bypasses React Router)
-  // FIXED: Use correct blueprint prefix
-const viewDocument = (doc) => {
-  if (!doc) return;
-  
-  const docId = doc._id || doc.id;
-  if (!docId) {
-    alert("Invalid document ID");
-    return;
-  }
-
-  // Use /admin/documents/... (matching your blueprint)
-  const viewUrl = `${apiClient.defaults.baseURL}/admin/documents/${docId}/view`;
-  window.open(viewUrl, '_blank');
-};
-
-  const formatDOB = (dob) => {
-    if (!dob) return '-';
-    if (/^\d{2}\/\d{2}\/\d{4}$/.test(dob)) return dob;
-    try {
-      const date = new Date(dob);
-      if (isNaN(date.getTime())) return String(dob);
-      return `${String(date.getDate()).padStart(2, '0')}/${String(date.getMonth() + 1).padStart(2, '0')}/${date.getFullYear()}`;
-    } catch {
-      return String(dob);
+  const viewDocument = (doc) => {
+    if (!doc) return;
+    const docId = doc._id || doc.id;
+    if (!docId) {
+      alert("Invalid document ID");
+      return;
     }
+    const viewUrl = `${apiClient.defaults.baseURL}/admin/documents/${docId}/view`;
+    window.open(viewUrl, '_blank');
   };
 
   if (!patient) return null;
@@ -108,7 +108,7 @@ const viewDocument = (doc) => {
             <div className="py-20 text-center text-red-600">{error}</div>
           ) : detail ? (
             <>
-              {/* Personal Information */}
+              {/* Personal Information - unchanged */}
               <div>
                 <h3 className="text-base font-semibold text-gray-800 mb-3 flex items-center gap-2">
                   <User size={18} className="text-teal-600" />
@@ -128,7 +128,7 @@ const viewDocument = (doc) => {
                   <div>
                     <div className="text-xs text-gray-500 uppercase tracking-widest">Gender • DOB</div>
                     <div className="font-semibold mt-0.5">
-                      {detail.gender || '-'} • {formatDOB(detail.dob)}
+                      {detail.gender || '-'} • {formatDateDDMMYYYY(detail.dob)}
                     </div>
                   </div>
 
@@ -149,7 +149,7 @@ const viewDocument = (doc) => {
                 </div>
               </div>
 
-              {/* Billing & Insurance */}
+              {/* Billing & Insurance - unchanged */}
               <div>
                 <h3 className="text-base font-semibold text-gray-800 mb-3 flex items-center gap-2">
                   <CreditCard size={18} className="text-teal-600" />
@@ -197,7 +197,7 @@ const viewDocument = (doc) => {
                 </div>
               </div>
 
-              {/* Recent Visits */}
+              {/* RECENT VISITS - FIXED DATE FORMATTING */}
               <div>
                 <h3 className="text-base font-semibold text-gray-800 mb-3 flex items-center gap-2 border-b pb-2">
                   <Calendar size={18} className="text-teal-600" />
@@ -212,8 +212,10 @@ const viewDocument = (doc) => {
                         className="flex flex-col sm:flex-row sm:items-center justify-between bg-gray-50 hover:bg-white border border-transparent hover:border-gray-200 rounded-2xl p-4 transition-all text-sm"
                       >
                         <div className="flex-1">
+                          {/* FIXED: Using formatDateDDMMYYYY for visit.date */}
                           <div className="font-medium">
-                            {visit.date} • {visit.time || ''}
+                            {formatDateDDMMYYYY(visit.date)} 
+                            {visit.time && ` • ${visit.time}`}
                           </div>
                           <div className="text-gray-600">
                             {visit.visit_type || 'Consultation'} • Dr. {visit.provider_name || '-'}
@@ -236,7 +238,7 @@ const viewDocument = (doc) => {
                 )}
               </div>
 
-              {/* DOCUMENTS SECTION - FIXED & VISIBLE */}
+              {/* Documents Section - unchanged */}
               <div>
                 <h3 className="text-lg font-semibold text-gray-900 mb-4 flex items-center gap-2">
                   <Upload size={18} className="text-teal-600" />
@@ -272,9 +274,7 @@ const viewDocument = (doc) => {
                             )}
                             {doc.created_at && (
                               <p className="text-xs text-gray-500 mt-0.5">
-                                {typeof doc.created_at === 'string' 
-                                  ? doc.created_at 
-                                  : new Date(doc.created_at).toLocaleDateString('en-GB')}
+                                {formatDateDDMMYYYY(doc.created_at)}
                               </p>
                             )}
                           </div>

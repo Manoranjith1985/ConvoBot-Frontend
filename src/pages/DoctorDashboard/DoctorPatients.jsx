@@ -1,12 +1,13 @@
 // src/pages/DoctorPatients.jsx
 import React, { useState, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useParams} from 'react-router-dom';
 import axios from 'axios';
 import { 
   Search, User, Calendar, Clock, FileText, AlertCircle, 
   X, Ban, ActivitySquare 
 } from 'lucide-react';
 import useEscapeKey from '../../hooks/UseEscapeKey';
+import { useDoctor } from '../../context/DoctorContext';
 
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://127.0.0.1:8000';
 const apiClient = axios.create({ baseURL: API_BASE_URL });
@@ -27,7 +28,10 @@ const DoctorPatients = () => {
   const [error, setError] = useState(null);
 
   // TODO: Replace with real auth context later
-  const currentDoctor = 'Dr. Test OP Doctor';
+  const { doctorId } = useParams();
+  const { selectedDoctor } = useDoctor();
+
+  const currentDoctor = selectedDoctor?.name || 'Dr. Test OP Doctor';
 
   useEscapeKey(() => setSelectedPatient(null));
 

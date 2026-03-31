@@ -94,9 +94,9 @@ const DoctorFormModal = ({ isOpen, onClose, doctor = null, onSave }) => {
       }
     }
 
-    // Work tab validation can be added later if needed
+    // Work tab validation can be expanded later
     if (activeTabId === 'work') {
-      // Example: if ( !formData.currentEmployment.shiftStart ) newErrors.shift = 'Shift start is recommended';
+      // Example: if (!formData.currentEmployment.shiftStart) newErrors.shiftStart = 'Shift start is recommended';
     }
 
     setErrors(newErrors);
@@ -108,7 +108,6 @@ const DoctorFormModal = ({ isOpen, onClose, doctor = null, onSave }) => {
       fetchSpecialties();
 
       if (doctor) {
-        // Edit mode
         setFormData({
           name: doctor.name || '',
           specialty: doctor.specialty || '',
@@ -135,7 +134,6 @@ const DoctorFormModal = ({ isOpen, onClose, doctor = null, onSave }) => {
         });
         setAvatarPreview(doctor.avatar || null);
       } else {
-        // Add new mode - reset everything
         setFormData({
           name: '',
           specialty: '',
@@ -183,7 +181,6 @@ const DoctorFormModal = ({ isOpen, onClose, doctor = null, onSave }) => {
       setFormData((prev) => ({ ...prev, [name]: value }));
     }
 
-    // Clear error for this field
     if (errors[name]) {
       setErrors((prev) => ({ ...prev, [name]: '' }));
     }
@@ -206,7 +203,6 @@ const DoctorFormModal = ({ isOpen, onClose, doctor = null, onSave }) => {
   const handleSubmit = (e) => {
     e.preventDefault();
 
-    // Only submit if we are on the last tab AND validation passes
     if (activeTabIndex !== tabs.length - 1 || !validateCurrentTab()) {
       return;
     }
@@ -218,17 +214,16 @@ const DoctorFormModal = ({ isOpen, onClose, doctor = null, onSave }) => {
       phone: formData.phone.trim(),
       bio: formData.bio || '',
       experienceYears: formData.experienceYears,
-      experience: formData.experienceYears, // backend compatibility
+      experience: formData.experienceYears,
       qualifications: formData.qualifications,
       educationHistory: formData.educationHistory,
       workHistory: formData.workHistory,
       currentEmployment: formData.currentEmployment,
-      avatar: avatarPreview, // base64 or URL - backend already handles it
-      // signature, stamp, seal can be added later when WorkTab passes them up
+      avatar: avatarPreview,
+      // TODO: Properly lift signature, stamp, seal from WorkTab in future
     };
 
     onSave(payload, isEdit ? (doctor?._id || doctor?.id) : null);
-    // Do NOT call onClose here - let parent handle success/close
   };
 
   if (!isOpen) return null;
@@ -266,79 +261,81 @@ const DoctorFormModal = ({ isOpen, onClose, doctor = null, onSave }) => {
           ))}
         </div>
 
-        <form onSubmit={handleSubmit} className="flex-1 overflow-hidden flex flex-col">
-          <div className="flex-1 overflow-y-auto p-6 sm:p-8 w-full box-border">
-            {activeTabId === 'personal' && (
-              <PersonalTab
-                formData={formData}
-                handleChange={handleChange}
-                errors={errors}
-                avatarPreview={avatarPreview}
-                setAvatarPreview={setAvatarPreview}
-                setAvatarFile={setAvatarFile}
-                specialties={specialties}
-                loadingSpecialties={loadingSpecialties}
-              />
-            )}
+        {/* Content Area */}
+        <div className="flex-1 overflow-y-auto p-6 sm:p-8 w-full box-border">
+          {activeTabId === 'personal' && (
+            <PersonalTab
+              formData={formData}
+              handleChange={handleChange}
+              errors={errors}
+              avatarPreview={avatarPreview}
+              setAvatarPreview={setAvatarPreview}
+              setAvatarFile={setAvatarFile}
+              specialties={specialties}
+              loadingSpecialties={loadingSpecialties}
+            />
+          )}
 
-            {activeTabId === 'education' && (
-              <EducationTab
-                formData={formData}
-                setFormData={setFormData}
-                tempEduDocs={tempEduDocs}
-                setTempEduDocs={setTempEduDocs}
-                errors={errors}
-              />
-            )}
+          {activeTabId === 'education' && (
+            <EducationTab
+              formData={formData}
+              setFormData={setFormData}
+              tempEduDocs={tempEduDocs}
+              setTempEduDocs={setTempEduDocs}
+              errors={errors}
+            />
+          )}
 
-            {activeTabId === 'experience' && (
-              <ExperienceTab
-                formData={formData}
-                setFormData={setFormData}
-                handleChange={handleChange}
-                errors={errors}
-                tempExpDocs={tempExpDocs}
-                setTempExpDocs={setTempExpDocs}
-              />
-            )}
+          {activeTabId === 'experience' && (
+            <ExperienceTab
+              formData={formData}
+              setFormData={setFormData}
+              handleChange={handleChange}
+              errors={errors}
+              tempExpDocs={tempExpDocs}
+              setTempExpDocs={setTempExpDocs}
+            />
+          )}
 
-            {activeTabId === 'work' && (
-              <WorkTab
-                formData={formData}
-                handleChange={handleChange}
-              />
-            )}
-          </div>
+          {activeTabId === 'work' && (
+            <WorkTab
+              formData={formData}
+              handleChange={handleChange}
+            />
+          )}
+        </div>
 
-          {/* Navigation Footer */}
-          <div className="border-t p-8 bg-white flex justify-between items-center">
+        {/* Navigation Footer - MOVED OUTSIDE <form> to prevent accidental submission */}
+        <div className="border-t p-8 bg-white flex justify-between items-center">
+          <button
+            type="button"
+            onClick={goToPrevTab}
+            disabled={activeTabIndex === 0}
+            className="flex items-center gap-2 px-8 py-3.5 border border-gray-300 rounded-2xl disabled:opacity-40 hover:bg-gray-50 transition-colors"
+          >
+            <ArrowLeft size={20} /> Previous
+          </button>
+
+          {activeTabIndex < tabs.length - 1 ? (
             <button
               type="button"
-              onClick={goToPrevTab}
-              disabled={activeTabIndex === 0}
-              className="flex items-center gap-2 px-8 py-3.5 border border-gray-300 rounded-2xl disabled:opacity-40 hover:bg-gray-50 transition-colors"
+              onClick={goToNextTab}
+              className="flex items-center gap-2 px-10 py-3.5 bg-[var(--primary-color)] text-white rounded-2xl hover:opacity-90 font-medium disabled:opacity-50"
             >
-              <ArrowLeft size={20} /> Previous
+              Next <ArrowRight size={20} />
             </button>
-
-            {activeTabIndex < tabs.length - 1 ? (
-              <button
-                type="button"
-                onClick={goToNextTab}
-                className="flex items-center gap-2 px-10 py-3.5 bg-[var(--primary-color)] text-white rounded-2xl hover:opacity-90 font-medium disabled:opacity-50"
-              >
-                Next <ArrowRight size={20} />
-              </button>
-            ) : (
+          ) : (
+            // Submit button ONLY shown on Work tab
+            <form onSubmit={handleSubmit}>
               <button
                 type="submit"
                 className="px-12 py-3.5 bg-[var(--primary-color)] text-white rounded-2xl hover:opacity-90 font-semibold text-lg"
               >
                 {isEdit ? 'Update Doctor' : 'Create Doctor'}
               </button>
-            )}
-          </div>
-        </form>
+            </form>
+          )}
+        </div>
       </div>
     </div>
   );

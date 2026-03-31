@@ -31,6 +31,7 @@ const EncounterDocumentation = () => {
   const apptTime      = params.get('time') || '—';
   const visitType     = params.get('type') || 'Consultation';
   const mode          = params.get('mode') || 'new';
+  const providerFromUrl = params.get('provider') || 'Dr. Test OP Doctor';
 
   const [soap, setSoap] = useState({ 
     subjective: '', 
@@ -88,7 +89,7 @@ const EncounterDocumentation = () => {
           patientData = patientRes.data?.data || patientRes.data || {};
         }
 
-        const apptRes = await apiBaseClient.get(`/doctor/appointments/history?provider=Dr. Test OP Doctor`);
+        const apptRes = await apiBaseClient.get(`/doctor/appointments/history?provider=${encodeURIComponent(providerFromUrl)}`);
         const appts = apptRes.data?.data || apptRes.data || [];
 
         const currentAppt = appts.find(a => 
@@ -126,7 +127,7 @@ const EncounterDocumentation = () => {
     };
 
     fetchContext();
-  }, [patientId, appointmentId]);
+  }, [patientId, appointmentId, providerFromUrl]);
 
   // Load Existing Documentation for Edit Mode
   useEffect(() => {

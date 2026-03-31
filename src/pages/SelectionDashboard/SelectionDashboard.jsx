@@ -22,7 +22,7 @@ export default function DashboardSelection() {
       description: 'Access patient records, coding review & clinical documentation',
       icon: <span className="text-5xl">🩺</span>,
       color: 'from-blue-500 to-cyan-500',
-      route: '/doctor-dashboard',
+      route: '/doctor-select',
       disabled: false,
     },
     {

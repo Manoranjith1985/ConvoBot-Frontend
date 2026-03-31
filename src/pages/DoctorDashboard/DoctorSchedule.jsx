@@ -5,7 +5,7 @@ import { Calendar, Clock, ChevronRight } from 'lucide-react';
 import useEscapeKey from '../../hooks/UseEscapeKey';
 import AppointmentDetailModal from '../../components/DoctorComponents/AppointmentDetailModal';
 import DoctorReferPatientModal from '../../components/DoctorComponents/DoctorReferPatientModal';
-import { useDoctor } from '../../hooks/useDoctor';
+import { useDoctor } from '../../context/DoctorContext';
 
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://127.0.0.1:8000';
 const apiClient = axios.create({ baseURL: API_BASE_URL });
@@ -39,9 +39,9 @@ const formatDOB = (dob) => {
 
 const DoctorSchedule = () => {
   const navigate = useNavigate();
-  const { doctor } = useDoctor();
-  const provider = doctor?.name || 'Dr. Test OP Doctor';
-
+  const { selectedDoctor } = useDoctor();
+  const provider = selectedDoctor?.name || 'Dr. Test OP Doctor';
+  
   const [appointments, setAppointments] = useState([]);
   const [selectedAppt, setSelectedAppt] = useState(null);
   const [patientData, setPatientData] = useState(null);
@@ -195,7 +195,7 @@ const DoctorSchedule = () => {
     const patId = toIdString(selectedAppt.patient_id);
 
     window.open(
-      `/encounter-documentation?appointment_id=${apptId}&patient_id=${patId}&patient=${encodeURIComponent(selectedAppt.patient_name || 'Unknown Patient')}&date=${selectedAppt.date}&time=${selectedAppt.time}&type=${encodeURIComponent(selectedAppt.visit_type || 'Consultation')}`,
+      `/encounter-documentation?appointment_id=${apptId}&patient_id=${patId}&patient=${encodeURIComponent(selectedAppt.patient_name || 'Unknown Patient')}&date=${selectedAppt.date}&time=${selectedAppt.time}&type=${encodeURIComponent(selectedAppt.visit_type || 'Consultation')}&provider=${encodeURIComponent(provider)}`,
       'EncounterDoc',
       'width=1200,height=900,resizable=yes,scrollbars=yes'
     );
@@ -289,6 +289,7 @@ const DoctorSchedule = () => {
           onClose={closeModal}
           onStartAppointment={handleStartAppointment}
           onReferPatient={handleReferPatient}
+          currentDoctorName = {provider}
         />
 
         {showReferModal && selectedAppt && (

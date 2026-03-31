@@ -4,6 +4,7 @@ import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
 
 import AuthPage from './pages/AuthPage/AuthPage.jsx';
 import DashboardSelection from './pages/SelectionDashboard/SelectionDashboard.jsx';
+import DoctorSelection from './pages/DoctorDashboard/DoctorSelection.jsx';
 
 import OPLayout from './layouts/OPLayout.jsx';
 import OPDashboard from './pages/OPDashboard/OPDashboard.jsx';
@@ -30,6 +31,8 @@ import AdminReportsPage from './pages/ClinicAdmin/AdminReportsPage.jsx';
 
 // Import your global keyboard shortcut hook
 import useCtrlBackspaceGoBack from './hooks/useCtrlBackspace.jsx';
+import { DoctorProvider } from './context/DoctorContext.jsx';
+
 
 // Wrapper component so the hook runs INSIDE the Router
 const AppContent = () => {
@@ -39,6 +42,7 @@ const AppContent = () => {
     <Routes>
       <Route path="/" element={<AuthPage />} />
       <Route path="/select-role" element={<DashboardSelection />} />
+      <Route path="/doctor-select" element={<DoctorSelection />} />
       <Route path="/encounter-documentation" element={<EncounterDocumentation />} />
 
       {/* === OP RECEPTION ROUTES (New Layout) === */}
@@ -75,7 +79,9 @@ const AppContent = () => {
 const App = () => {
   return (
     <Router>
-      <AppContent />
+      <DoctorProvider>
+        <AppContent />
+      </DoctorProvider>
     </Router>
   );
 };

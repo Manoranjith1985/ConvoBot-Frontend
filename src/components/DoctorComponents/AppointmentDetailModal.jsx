@@ -28,7 +28,7 @@ const AppointmentDetailModal = ({
   formatDOB,
   onClose,
   onStartAppointment,
-  currentDoctorName = 'Dr. Test OP Doctor'
+  currentDoctorName,
 }) => {
   if (!selectedAppt) return null;
 

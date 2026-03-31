@@ -1,7 +1,9 @@
 // src/pages/DoctorProfile.jsx
 import React, { useState, useEffect } from 'react';
+import { useParams } from 'react-router-dom';
 import axios from 'axios';
 import { Calendar, Users, Award, Mail, Phone, LogOut, AlertCircle, FileText } from 'lucide-react';
+import { useDoctor } from '../../context/DoctorContext';
 
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://127.0.0.1:8000';
 const apiClient = axios.create({ baseURL: API_BASE_URL });
@@ -12,7 +14,10 @@ const DoctorProfile = () => {
   const [error, setError] = useState(null);
 
   // TODO: replace with real auth
-  const currentDoctor = 'Dr. Test OP Doctor';
+  const { doctorId } = useParams();
+  const { selectedDoctor } = useDoctor();
+
+  const currentDoctor = selectedDoctor?.name || 'Dr. Test OP Doctor';
 
   useEffect(() => {
     const fetchProfile = async () => {

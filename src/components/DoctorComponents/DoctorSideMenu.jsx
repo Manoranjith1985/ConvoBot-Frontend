@@ -2,15 +2,17 @@
 import React from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { Calendar, Users, Clock } from 'lucide-react';
+import { useDoctor } from '../../context/DoctorContext';
 
 const DoctorSideMenu = () => {
   const navigate = useNavigate();
   const location = useLocation();
+  const { selectedDoctor } = useDoctor();
 
   // Simulate auth – in real app use context
   const doctor = JSON.parse(localStorage.getItem('doctor') || JSON.stringify({
-    name: "Dr. Test OP Doctor",
-    avatar: "https://images.unsplash.com/photo-1612349317150-e413f6a5b16d?w=400"
+    name: selectedDoctor.name || "Dr. Test OP Doctor",
+    avatar: selectedDoctor.avatar || "https://images.unsplash.com/photo-1612349317150-e413f6a5b16d?w=400"
   }));
 
   const isActive = (path) => location.pathname === path;

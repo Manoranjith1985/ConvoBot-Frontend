@@ -1,8 +1,10 @@
 // src/pages/DoctorDashboard.jsx
 import React, { useState, useEffect } from 'react';
 import axios from 'axios';
+import { useParams } from 'react-router-dom';
 import { Users, Calendar } from 'lucide-react';
 import AcceptReferralModal from '../../components/DoctorComponents/AcceptReferralModal';
+import { useDoctor } from '../../context/DoctorContext';
 
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://127.0.0.1:8000';
 
@@ -15,6 +17,11 @@ const DoctorDashboard = () => {
     appointments: 0,
   });
 
+  const { doctorId } = useParams();
+  const { selectedDoctor } = useDoctor();
+
+  const provider = selectedDoctor?.name || 'Dr. Test OP Doctor';
+
   const [todayAppointments, setTodayAppointments] = useState([]);
   const [nextPatient, setNextPatient] = useState({});
   const [requests, setRequests] = useState([]);
@@ -25,8 +32,6 @@ const DoctorDashboard = () => {
   useEffect(() => {
     const fetchDashboardData = async () => {
       try {
-        const provider = 'Dr. Test OP Doctor';
-
         const [metricsRes, apptsRes, nextRes, reqsRes] = await Promise.all([
           apiClient.get(`/doctor/dashboard-metrics?provider=${encodeURIComponent(provider)}`),
           apiClient.get(`/doctor/today_appointments?provider=${encodeURIComponent(provider)}`),

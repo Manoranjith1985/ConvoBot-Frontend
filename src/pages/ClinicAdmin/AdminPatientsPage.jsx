@@ -12,6 +12,16 @@ import useEscapeKey from '../../hooks/UseEscapeKey';
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://127.0.0.1:8000';
 const apiClient = axios.create({ baseURL: API_BASE_URL });
 
+const formatDateDDMMYYYY = (dateStr) => {
+  if (!dateStr) return '—';
+  if (/^\d{2}\/\d{2}\/\d{4}$/.test(dateStr.trim())) return dateStr.trim();
+  const d = new Date(dateStr);
+  if (isNaN(d.getTime())) return dateStr;
+  return `${d.getDate().toString().padStart(2, '0')}/${
+    (d.getMonth() + 1).toString().padStart(2, '0')
+  }/${d.getFullYear()}`;
+};
+
 const AdminPatientsPage = ({ role = 'Clinic Admin', primaryColor = '#0d9488' }) => {
   const navigate = useNavigate();
   
@@ -92,6 +102,11 @@ const AdminPatientsPage = ({ role = 'Clinic Admin', primaryColor = '#0d9488' }) 
         (p.billing_type || 'Cash').toLowerCase() === insuranceFilter.toLowerCase()
       );
     }
+
+    result = result.map(p => ({
+      ...p,
+      formattedDOB: formatDateDDMMYYYY(p.dob || p.date_of_birth)
+    }));
 
     // Sorting
     if (sortConfig.key) {
@@ -206,7 +221,7 @@ const AdminPatientsPage = ({ role = 'Clinic Admin', primaryColor = '#0d9488' }) 
   const exportToCSV = () => {
     let csv = 'File No,Name,Phone,DOB,Gender,Billing Type,Company\n';
     processedPatients.forEach(p => {
-      csv += `"${p.file_number || p.eid || ''}","${p.patient_name || ''}","${p.phone || ''}","${p.dob || ''}","${p.gender || ''}","${p.billing_type || 'Cash'}","${p.company_name || ''}"\n`;
+      csv += `"${p.file_number || p.eid || ''}","${p.patient_name || ''}","${p.phone || ''}","${p.formattedDOB || ''}","${p.gender || ''}","${p.billing_type || 'Cash'}","${p.company_name || ''}"\n`;
     });
 
     const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
@@ -320,7 +335,7 @@ const AdminPatientsPage = ({ role = 'Clinic Admin', primaryColor = '#0d9488' }) 
                     <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">{p.file_number || p.eid || '-'}</td>
                     <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">{p.patient_name}</td>
                     <td className="px-6 py-4 whitespace-nowrap text-sm">{p.phone || '-'}</td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm">{p.dob || '-'}</td>
+                    <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">{p.formattedDOB}</td>
                     <td className="px-6 py-4 whitespace-nowrap text-sm">{p.gender || '-'}</td>
                     <td className="px-6 py-4 whitespace-nowrap">
                       <span className={`inline-flex px-3 py-1 text-xs font-medium rounded-full ${
