@@ -1,15 +1,13 @@
-// src/pages/OPDashboard/NewAppointment.jsx
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import axios from 'axios';
 import { UserPlus } from 'lucide-react';
-import useEscapeKey from '../../hooks/UseEscapeKey';
 import AppointmentForm from '../../components/OPComponents/AppointmentForm';
 
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://127.0.0.1:8000';
 const apiClient = axios.create({ baseURL: API_BASE_URL });
 
-// Default empty form state — used for reset
+// Default empty form state
 const initialForm = {
   date: new Date().toISOString().split('T')[0],
   time: '09:00',
@@ -40,40 +38,39 @@ const initialForm = {
   patient_id: '',
   existingDocuments: [],
   attached_document_ids: [],
-  attachedDocuments: [],      // ← NEW: full objects for display
+  attachedDocuments: [],
   currentDocumentType: '',
   ai_consent: false,
-
 };
 
 const NewAppointment = () => {
   const navigate = useNavigate();
   const [search, setSearch] = useState('');
   const [searchResults, setSearchResults] = useState([]);
-  const [doctors, setDoctors] = useState([]);
+  const [rawDoctors, setRawDoctors] = useState([]);           // Original list from backend
+  const [doctorsWithAvailability, setDoctorsWithAvailability] = useState([]); // Enriched list
   const [receivers, setReceivers] = useState([]);
   const [payers, setPayers] = useState([]);
   const [networks, setNetworks] = useState([]);
   const [showForm, setShowForm] = useState(false);
   const [form, setForm] = useState(initialForm);
+  const [loadingAvailability, setLoadingAvailability] = useState(false);
 
-  (() => {
-    if (showForm) setShowForm(false);
-  });
-
+  // Load raw doctors and masters once
   useEffect(() => {
-    // Load doctors
-    apiClient.get('/op/doctors')
+    apiClient.get('/appt/doctors')
       .then(res => {
         const data = res.data.data || res.data || [];
-        setDoctors(Array.isArray(data) ? data : []);
+        setRawDoctors(Array.isArray(data) ? data : []);
+        setDoctorsWithAvailability(Array.isArray(data) ? data : []); // Initial copy
       })
       .catch(err => {
         console.error('Failed to load doctors:', err);
-        setDoctors([]);
+        setRawDoctors([]);
+        setDoctorsWithAvailability([]);
       });
 
-    // Load masters (receivers, payers, networks)
+    // Load insurance masters
     const masters = [
       { url: '/admin/masters/receiver', setter: setReceivers },
       { url: '/admin/masters/payer', setter: setPayers },
@@ -86,12 +83,55 @@ const NewAppointment = () => {
           const data = res.data.data || res.data || [];
           m.setter(Array.isArray(data) ? data : []);
         })
-        .catch(err => {
-          console.error(`Failed to load ${m.url}:`, err);
-          m.setter([]);
-        });
+        .catch(err => console.error(`Failed to load ${m.url}:`, err));
     });
   }, []);
+
+  // Real-time availability check
+  useEffect(() => {
+    if (!form.date || !form.time || rawDoctors.length === 0) {
+      setDoctorsWithAvailability(rawDoctors);
+      return;
+    }
+
+    const checkAvailability = async () => {
+      setLoadingAvailability(true);
+      try {
+        const res = await apiClient.get('/appt/doctors/availability', {
+          params: { date: form.date, time: form.time }
+        });
+
+        if (res.data.status === 'success') {
+          const availabilityMap = res.data.data.reduce((acc, avail) => {
+            acc[avail.name] = avail;
+            return acc;
+          }, {});
+
+          // Merge availability info without losing any doctor
+          const enriched = rawDoctors.map(doc => {
+            const availInfo = availabilityMap[doc.name];
+            return {
+              ...doc,
+              is_available: availInfo?.is_available ?? false,
+              availability_reason: availInfo?.reason || 'No schedule defined',
+              shift: availInfo?.shift || '—',
+            };
+          });
+
+          setDoctorsWithAvailability(enriched);
+        }
+      } catch (err) {
+        console.error('Availability check failed:', err);
+        // Fallback: keep raw doctors
+        setDoctorsWithAvailability(rawDoctors);
+      } finally {
+        setLoadingAvailability(false);
+      }
+    };
+
+    const timeoutId = setTimeout(checkAvailability, 300); // Debounce
+    return () => clearTimeout(timeoutId);
+  }, [form.date, form.time, rawDoctors]);
 
   const resetForm = () => {
     setForm(initialForm);
@@ -112,8 +152,6 @@ const NewAppointment = () => {
       const res = await apiClient.get(`/op/patient_search?query=${encodeURIComponent(q)}`);
       if (res.data.status === 'success') {
         setSearchResults(res.data.data || []);
-      } else {
-        setSearchResults([]);
       }
     } catch (err) {
       console.error('Patient search failed:', err);
@@ -121,7 +159,7 @@ const NewAppointment = () => {
     }
   };
 
-  const getDisplayName = (p) => p.name || 'Unknown Patient';
+  const getDisplayName = (p) => p.name || p.patient_name || 'Unknown Patient';
 
   const getSecondaryInfo = (p) => {
     const parts = [];
@@ -133,13 +171,13 @@ const NewAppointment = () => {
   };
 
   const selectPatient = (patient) => {
-    const name = patient.name || '';
+    const name = patient.name || patient.patient_name || '';
 
     setForm({
       ...initialForm,
       patient_name: name,
       eid: patient.eid || '',
-      file_number: patient.file_number || '',   // ← will be shown read-only
+      file_number: patient.file_number || '',
       phone: patient.phone || '',
       dob: patient.dob || '',
       gender: patient.gender || 'Male',
@@ -147,9 +185,10 @@ const NewAppointment = () => {
       company_name: patient.company_name || '',
       allergies: patient.allergies || '',
       chronic_conditions: patient.chronic_conditions || '',
-      patient_id: patient.id || patient._id || '',           // ← important
-      existingDocuments: patient.documents || [],             // ← if endpoint returns documents
+      patient_id: patient.id || patient._id || '',
+      existingDocuments: patient.documents || [],
       attached_document_ids: [],
+      attachedDocuments: [],
     });
 
     setSearch(name);
@@ -173,12 +212,13 @@ const NewAppointment = () => {
     if (!form.ai_consent) return alert("You must consent to AI-assisted documentation to book this appointment.");
 
     try {
-      const payload = { ...form,
-        attached_document_ids: form.attached_document_ids,
+      const payload = {
+        ...form,
+        attached_document_ids: form.attached_document_ids || [],
         ai_consent: form.ai_consent,
-       };
-      
-      const res = await apiClient.post('/op/', payload);
+      };
+
+      const res = await apiClient.post('/api/appt/', payload);
 
       if (res.data.status === 'success') {
         alert('Appointment created successfully!');
@@ -188,7 +228,8 @@ const NewAppointment = () => {
       }
     } catch (err) {
       console.error('Appointment creation error:', err);
-      alert(err.response?.data?.message || 'Error creating appointment. Please check required fields.');
+      const msg = err.response?.data?.message || err.response?.data?.error || 'Error creating appointment.';
+      alert(msg);
     }
   };
 
@@ -249,7 +290,7 @@ const NewAppointment = () => {
               <AppointmentForm
                 form={form}
                 setForm={setForm}
-                doctors={doctors}
+                doctors={doctorsWithAvailability}     // ← Use enriched list
                 receivers={receivers}
                 payers={payers}
                 networks={networks}
@@ -258,6 +299,7 @@ const NewAppointment = () => {
                   setShowForm(false);
                   resetForm();
                 }}
+                loadingAvailability={loadingAvailability}
               />
             </div>
           )}

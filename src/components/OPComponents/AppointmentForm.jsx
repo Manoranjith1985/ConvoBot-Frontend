@@ -16,6 +16,7 @@ const AppointmentForm = ({
   networks,
   onSubmit,
   onCancel,
+  loadingAvailability = false,
 }) => {
   const handleChange = (e) => {
     const { name, value } = e.target;
@@ -187,57 +188,24 @@ const AppointmentForm = ({
           />
         </div>
 
-        <div>
-          <label className="block text-sm font-medium text-gray-700 mb-1.5">Company Name</label>
-          <input
-            type="text"
-            name="company_name"
-            value={form.company_name || ''}
+        {/* Appointment Details - Reordered as requested */}
+        {/* 1. Chief Complaints / Concerns (Top) */}
+        <div className="md:col-span-2">
+          <label className="block text-sm font-medium text-gray-700 mb-1.5">
+            Chief Complaints / Concerns <span className="text-red-500">*</span>
+          </label>
+          <textarea
+            required
+            name="concerns"
+            value={form.concerns || ''}
             onChange={handleChange}
-            placeholder="Employer / Company"
+            placeholder="Reason for visit, symptoms..."
+            rows={3}
             className="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-teal-500 focus:border-teal-500"
           />
         </div>
 
-        {/* Appointment Details */}
-        <div>
-          <label className="block text-sm font-medium text-gray-700 mb-1.5">
-            Doctor <span className="text-red-500">*</span>
-          </label>
-          <select
-            required
-            name="provider"
-            value={form.provider || ''}
-            onChange={handleChange}
-            className="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-teal-500 focus:border-teal-500"
-          >
-            <option value="">Select Doctor</option>
-            {doctors.map((doc) => (
-              <option key={doc._id} value={doc.name}>
-                {doc.name} {doc.specialty ? `(${doc.specialty})` : ''}
-              </option>
-            ))}
-          </select>
-        </div>
-
-        <div>
-          <label className="block text-sm font-medium text-gray-700 mb-1.5">
-            Visit Type <span className="text-red-500">*</span>
-          </label>
-          <select
-            required
-            name="visit_type"
-            value={form.visit_type || 'Consultation'}
-            onChange={handleChange}
-            className="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-teal-500 focus:border-teal-500"
-          >
-            <option value="Consultation">Consultation</option>
-            <option value="Follow-up">Follow-up</option>
-            <option value="Check-up">Check-up</option>
-            <option value="Emergency">Emergency</option>
-          </select>
-        </div>
-
+        {/* 2. Date and Time */}
         <div>
           <label className="block text-sm font-medium text-gray-700 mb-1.5">
             Date <span className="text-red-500">*</span>
@@ -266,7 +234,74 @@ const AppointmentForm = ({
           />
         </div>
 
-        {/* Billing Information */}
+        {/* 3. Visit Type */}
+        <div>
+          <label className="block text-sm font-medium text-gray-700 mb-1.5">
+            Visit Type <span className="text-red-500">*</span>
+          </label>
+          <select
+            required
+            name="visit_type"
+            value={form.visit_type || 'Consultation'}
+            onChange={handleChange}
+            className="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-teal-500 focus:border-teal-500"
+          >
+            <option value="Consultation">Consultation</option>
+            <option value="Follow-up">Follow-up</option>
+            <option value="Check-up">Check-up</option>
+            <option value="Emergency">Emergency</option>
+          </select>
+        </div>
+
+        {/* 4. Doctor (with availability) */}
+        <div>
+          <label className="block text-sm font-medium text-gray-700 mb-1.5">
+            Doctor <span className="text-red-500">*</span>
+            {loadingAvailability && <span className="ml-2 text-xs text-teal-600">(checking availability...)</span>}
+          </label>
+          <select
+            required
+            name="provider"
+            value={form.provider || ''}
+            onChange={handleChange}
+            className="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-teal-500 focus:border-teal-500"
+          >
+            <option value="">Select Doctor</option>
+            {doctors.map((doc) => (
+              <option 
+                key={doc._id} 
+                value={doc.name}
+                disabled={!doc.is_available}
+                title={doc.availability_reason || ''}
+              >
+                {doc.name} 
+                {doc.specialty ? ` (${doc.specialty})` : ''} 
+                {doc.shift ? ` — ${doc.shift}` : ''}
+                {!doc.is_available && ' (Unavailable)'}
+              </option>
+            ))}
+          </select>
+          {doctors.length > 0 && doctors.every(d => !d.is_available) && (
+            <p className="text-sm text-red-600 mt-1">
+              No doctors available for the selected date and time. Please choose a different slot.
+            </p>
+          )}
+        </div>
+
+        {/* 5. Company Name */}
+        <div>
+          <label className="block text-sm font-medium text-gray-700 mb-1.5">Company Name</label>
+          <input
+            type="text"
+            name="company_name"
+            value={form.company_name || ''}
+            onChange={handleChange}
+            placeholder="Employer / Company"
+            className="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-teal-500 focus:border-teal-500"
+          />
+        </div>
+
+        {/* 6. Billing Type + Insurance Fields */}
         <div>
           <label className="block text-sm font-medium text-gray-700 mb-1.5">
             Billing Type <span className="text-red-500">*</span>
@@ -285,7 +320,6 @@ const AppointmentForm = ({
 
         {form.billing_type === 'Insurance' && (
           <>
-            {/* Receiver Dropdown - FIXED */}
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1.5">
                 Receiver <span className="text-red-500">*</span>
@@ -306,7 +340,6 @@ const AppointmentForm = ({
               </select>
             </div>
 
-            {/* Payer Dropdown - FIXED */}
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1.5">
                 Payer <span className="text-red-500">*</span>
@@ -327,7 +360,6 @@ const AppointmentForm = ({
               </select>
             </div>
 
-            {/* Network Dropdown - FIXED */}
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1.5">
                 Network <span className="text-red-500">*</span>
@@ -381,23 +413,6 @@ const AppointmentForm = ({
             </div>
           </>
         )}
-
-        {/* Clinical Notes */}
-        <div className="md:col-span-2">
-          <label className="block text-sm font-medium text-gray-700 mb-1.5">
-            Chief Complaints / Concerns <span className="text-red-500">*</span>
-          </label>
-          <textarea
-            required
-            name="concerns"
-            value={form.concerns || ''}
-            onChange={handleChange}
-            placeholder="Reason for visit, symptoms..."
-            rows={3}
-            className="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-teal-500 focus:border-teal-500"
-          />
-        </div>
-
         {/* Vitals */}
         <div>
           <label className="block text-sm font-medium text-gray-700 mb-1.5">
